@@ -365,11 +365,12 @@ class GatewayClient {
             "minProtocol": 3,
             "maxProtocol": 3,
             "client": [
-                "id": "homeslice",
+                "id": "cli",
+                "displayName": "HomeSlice",
                 "version": "1.0.0",
                 "platform": "macos",
-                "mode": "operator"
-            ],
+                "mode": "cli"
+            ] as [String: Any],
             "role": "operator",
             "scopes": ["operator.read", "operator.write"],
             "caps": [],
