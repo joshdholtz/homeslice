@@ -972,7 +972,7 @@ class AppDelegate: NSObject, NSApplicationDelegate {
     @objc func showChat() {
         if chatPopover == nil {
             chatPopover = NSPopover()
-            chatPopover?.contentSize = NSSize(width: 250, height: 50)
+            chatPopover?.contentSize = NSSize(width: 320, height: 450)
             chatPopover?.behavior = .transient
             chatPopover?.animates = true
             chatPopover?.contentViewController = ChatPopoverController(pizzaState: pizzaState)
@@ -1221,11 +1221,10 @@ struct ChatHistoryBubble: View {
     }
 }
 
-// MARK: - Chat Popover Controller
+// MARK: - Chat Popover Controller (History + Input)
 
 class ChatPopoverController: NSViewController {
     let pizzaState: PizzaState
-    var textField: NSTextField!
 
     init(pizzaState: PizzaState) {
         self.pizzaState = pizzaState
@@ -1237,45 +1236,100 @@ class ChatPopoverController: NSViewController {
     }
 
     override func loadView() {
-        let container = NSView(frame: NSRect(x: 0, y: 0, width: 250, height: 50))
-
-        textField = NSTextField(frame: NSRect(x: 10, y: 12, width: 190, height: 26))
-        textField.placeholderString = "Ask me anything..."
-        textField.bezelStyle = .roundedBezel
-        textField.font = .systemFont(ofSize: 13)
-        textField.target = self
-        textField.action = #selector(sendMessage)
-        container.addSubview(textField)
-
-        let sendButton = NSButton(frame: NSRect(x: 205, y: 12, width: 35, height: 26))
-        sendButton.title = "→"
-        sendButton.bezelStyle = .rounded
-        sendButton.target = self
-        sendButton.action = #selector(sendMessage)
-        container.addSubview(sendButton)
-
-        self.view = container
+        let chatView = FullChatView().environmentObject(pizzaState)
+        let hostingView = NSHostingView(rootView: chatView)
+        hostingView.frame = NSRect(x: 0, y: 0, width: 320, height: 450)
+        self.view = hostingView
     }
+}
 
-    override func viewDidAppear() {
-        super.viewDidAppear()
-        view.window?.makeFirstResponder(textField)
-    }
+struct FullChatView: View {
+    @EnvironmentObject var pizzaState: PizzaState
+    @State private var inputText: String = ""
+    @FocusState private var isInputFocused: Bool
 
-    @objc func sendMessage() {
-        let message = textField.stringValue
-        guard !message.isEmpty else { return }
+    var body: some View {
+        VStack(spacing: 0) {
+            // Header
+            HStack {
+                Text("🍕 HomeSlice")
+                    .font(.headline)
+                Spacer()
+                if !pizzaState.chatHistory.isEmpty {
+                    Text("\(pizzaState.chatHistory.count) messages")
+                        .font(.caption)
+                        .foregroundColor(.secondary)
+                }
+            }
+            .padding(.horizontal)
+            .padding(.vertical, 10)
 
-        pizzaState.chatMessage = message
-        textField.stringValue = ""
-        pizzaState.sendMessage()
+            Divider()
 
-        // Close popover after sending
-        if let appDelegate = NSApp.delegate as? AppDelegate {
-            appDelegate.chatPopover?.close()
-            // Ensure pizza panel stays visible
-            appDelegate.panel.orderFrontRegardless()
+            // Messages
+            if pizzaState.chatHistory.isEmpty {
+                Spacer()
+                Text("Say hi! 👋")
+                    .foregroundColor(.secondary)
+                Spacer()
+            } else {
+                ScrollViewReader { proxy in
+                    ScrollView {
+                        LazyVStack(alignment: .leading, spacing: 8) {
+                            ForEach(pizzaState.chatHistory) { message in
+                                ChatHistoryBubble(message: message)
+                                    .id(message.id)
+                            }
+                        }
+                        .padding()
+                    }
+                    .onChange(of: pizzaState.chatHistory.count) { _ in
+                        if let last = pizzaState.chatHistory.last {
+                            withAnimation {
+                                proxy.scrollTo(last.id, anchor: .bottom)
+                            }
+                        }
+                    }
+                    .onAppear {
+                        if let last = pizzaState.chatHistory.last {
+                            proxy.scrollTo(last.id, anchor: .bottom)
+                        }
+                    }
+                }
+            }
+
+            Divider()
+
+            // Input area
+            HStack(spacing: 8) {
+                TextField("Ask me anything...", text: $inputText)
+                    .textFieldStyle(.roundedBorder)
+                    .focused($isInputFocused)
+                    .onSubmit {
+                        sendMessage()
+                    }
+
+                Button(action: sendMessage) {
+                    Image(systemName: "arrow.up.circle.fill")
+                        .font(.system(size: 24))
+                        .foregroundColor(inputText.isEmpty ? .gray : .blue)
+                }
+                .buttonStyle(.plain)
+                .disabled(inputText.isEmpty)
+            }
+            .padding()
         }
+        .frame(width: 320, height: 450)
+        .onAppear {
+            isInputFocused = true
+        }
+    }
+
+    private func sendMessage() {
+        guard !inputText.isEmpty else { return }
+        pizzaState.chatMessage = inputText
+        inputText = ""
+        pizzaState.sendMessage()
     }
 }
 
@@ -1366,12 +1420,8 @@ struct KawaiiPizzaView: View {
                 if pizzaState.botURL.isEmpty {
                     handleTap()
                 } else {
-                    // Check for Option key
-                    if NSEvent.modifierFlags.contains(.option) {
-                        NotificationCenter.default.post(name: .showHistoryDialog, object: nil)
-                    } else {
-                        NotificationCenter.default.post(name: .showChatDialog, object: nil)
-                    }
+                    // Open chat window (includes history + input)
+                    NotificationCenter.default.post(name: .showChatDialog, object: nil)
                 }
             }
             .contextMenu {
