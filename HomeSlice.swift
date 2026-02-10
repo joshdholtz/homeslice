@@ -68,14 +68,18 @@ class PizzaState: ObservableObject {
                 guard let self = self else { return }
 
                 if let response = response {
-                    let truncated = String(response.prefix(500))
-                    print(">>> Response received (len=\(truncated.count))")
+                    // Sanitize response: replace newlines, limit length
+                    var sanitized = response
+                        .replacingOccurrences(of: "\n", with: " ")
+                        .replacingOccurrences(of: "\r", with: "")
+                        .replacingOccurrences(of: "\t", with: " ")
+                    sanitized = String(sanitized.prefix(200))
+                    print(">>> Sanitized response (len=\(sanitized.count)): \(sanitized.prefix(50))...")
 
-                    // DEBUG: hardcoded simple text
                     self.chatDisplay = ChatDisplayState(
                         isThinking: false,
                         showResponse: true,
-                        botResponse: "Hello world"  // simple hardcoded text
+                        botResponse: sanitized
                     )
                     self.mood = .happy
 
