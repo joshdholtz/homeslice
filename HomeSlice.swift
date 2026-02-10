@@ -127,15 +127,34 @@ class DeviceIdentity {
         Data(privateKey.publicKey.rawRepresentation).base64EncodedString()
     }
 
-    func sign(nonce: String) -> String {
-        guard let nonceData = nonce.data(using: .utf8) else {
-            print("Failed to encode nonce as UTF-8")
+    /// Sign the connect attestation string (v2 format)
+    /// Format: v2|deviceId|clientId|clientMode|role|scopesCSV|signedAtMs|token|nonce
+    func signConnectAttestation(
+        clientId: String,
+        clientMode: String,
+        role: String,
+        scopes: [String],
+        signedAt: Int64,
+        token: String,
+        nonce: String
+    ) -> String {
+        let scopesCSV = scopes.joined(separator: ",")
+        let attestation = "v2|\(deviceId)|\(clientId)|\(clientMode)|\(role)|\(scopesCSV)|\(signedAt)|\(token)|\(nonce)"
+
+        print("=== Attestation String ===")
+        print(attestation)
+        print("==========================")
+
+        guard let attestationData = attestation.data(using: .utf8) else {
+            print("Failed to encode attestation as UTF-8")
             return ""
         }
-        guard let signature = try? privateKey.signature(for: nonceData) else {
-            print("Failed to sign nonce")
+
+        guard let signature = try? privateKey.signature(for: attestationData) else {
+            print("Failed to sign attestation")
             return ""
         }
+
         let sigData = Data(signature)
         let sig = sigData.base64EncodedString()
 
@@ -143,7 +162,7 @@ class DeviceIdentity {
         print("Signature length: \(sigData.count) bytes (expected: 64)")
 
         // Verify signature locally before returning
-        let isValid = privateKey.publicKey.isValidSignature(signature, for: nonceData)
+        let isValid = privateKey.publicKey.isValidSignature(signature, for: attestationData)
         print("Signature verification: \(isValid ? "VALID" : "INVALID")")
 
         return sig
@@ -405,22 +424,37 @@ class GatewayClient {
 
         let device = DeviceIdentity.shared
         device.printDebugInfo()
-        print("Signing nonce: \(nonce)")
-        let signature = device.sign(nonce: nonce)
-        print("Signature: \(signature.prefix(20))...")
+
+        // These must match EXACTLY what we send in the connect params
+        let clientId = "cli"
+        let clientMode = "cli"
+        let role = "operator"
+        let scopes = ["operator.read", "operator.write"]
+        let signedAt = ts  // Use challenge timestamp
+
+        // Sign the full attestation string (v2 format)
+        let signature = device.signConnectAttestation(
+            clientId: clientId,
+            clientMode: clientMode,
+            role: role,
+            scopes: scopes,
+            signedAt: signedAt,
+            token: gatewayToken,
+            nonce: nonce
+        )
 
         var params: [String: Any] = [
             "minProtocol": 3,
             "maxProtocol": 3,
             "client": [
-                "id": "cli",
+                "id": clientId,
                 "displayName": "HomeSlice",
                 "version": "1.0.0",
                 "platform": "macos",
-                "mode": "cli"
+                "mode": clientMode
             ] as [String: Any],
-            "role": "operator",
-            "scopes": ["operator.read", "operator.write"],
+            "role": role,
+            "scopes": scopes,
             "caps": [],
             "commands": [],
             "permissions": [:] as [String: Any],
@@ -430,7 +464,7 @@ class GatewayClient {
                 "id": device.deviceId,
                 "publicKey": device.publicKeyBase64,
                 "signature": signature,
-                "signedAt": ts,
+                "signedAt": signedAt,
                 "nonce": nonce
             ] as [String: Any]
         ]
