@@ -2390,9 +2390,14 @@ struct ResponseBubble: View {
         do {
             var options = AttributedString.MarkdownParsingOptions()
             options.interpretedSyntax = .full
-            return try AttributedString(markdown: message, options: options)
+            var result = try AttributedString(markdown: message, options: options)
+            // Set default foreground color without overriding markdown styles
+            result.mergeAttributes(AttributeContainer.foregroundColor(.black), mergePolicy: .keepCurrent)
+            return result
         } catch {
-            return AttributedString(message)
+            var plain = AttributedString(message)
+            plain.foregroundColor = .black
+            return plain
         }
     }
 
@@ -2404,7 +2409,6 @@ struct ResponseBubble: View {
                 ScrollView {
                     Text(markdownContent)
                         .font(.system(size: 14))
-                        .foregroundColor(.black)
                         .multilineTextAlignment(.leading)
                         .fixedSize(horizontal: false, vertical: true)
                         .frame(maxWidth: .infinity, alignment: .leading)
