@@ -220,11 +220,12 @@ class PizzaState: ObservableObject {
         request.setValue("Bearer \(botToken)", forHTTPHeaderField: "Authorization")
         request.setValue("application/json", forHTTPHeaderField: "Content-Type")
 
+        // Fetch from Telegram alerts session for reminders
         let body: [String: Any] = [
             "tool": "sessions_history",
             "args": [
-                "sessionKey": "agent:main:app:pizza:main",
-                "limit": 20,
+                "sessionKey": "agent:main:telegram:group:-1003723640588",
+                "limit": 200,
                 "includeTools": false
             ]
         ]
@@ -725,14 +726,15 @@ class GatewayClient {
                 return
             }
 
-            // Extract assistant message content - only bell notifications
+            // Extract assistant message content - capture all Telegram messages
             if let message = payload["message"] as? [String: Any],
                let role = message["role"] as? String, role == "assistant",
                let content = message["content"] as? [[String: Any]] {
                 for block in content {
                     if let type = block["type"] as? String, type == "text",
                        let text = block["text"] as? String {
-                        if text.hasPrefix("🔔") {
+                        // For Telegram, capture all messages; for main session, only bells
+                        if isTelegramAlerts || text.hasPrefix("🔔") {
                             responseBuffer = text
                         }
                     }
@@ -740,8 +742,8 @@ class GatewayClient {
             }
             // Check for completion (state: "final")
             if let state = payload["state"] as? String, state == "final" {
-                if responseBuffer.hasPrefix("🔔") {
-                    print("Bell notification: \(responseBuffer.prefix(50))...")
+                if !responseBuffer.isEmpty {
+                    print("Notification: \(responseBuffer.prefix(50))...")
                     showActivityNudge(responseBuffer)
                     responseBuffer = ""
                 }
@@ -763,13 +765,11 @@ class GatewayClient {
             if let stream = payload["stream"] as? String, stream == "assistant",
                let data = payload["data"] as? [String: Any],
                let text = data["text"] as? String {
-                // For notification sessions, only capture if starts with bell
-                if isNotificationSession {
-                    if text.hasPrefix("🔔") {
-                        responseBuffer = text
-                    }
-                } else {
-                    responseBuffer = text  // text is accumulated, not delta
+                // For Telegram, capture all messages; for main session, only bells; for pizza, all
+                if isTelegramAlerts || !isNotificationSession {
+                    responseBuffer = text
+                } else if text.hasPrefix("🔔") {
+                    responseBuffer = text
                 }
             }
 
@@ -778,9 +778,8 @@ class GatewayClient {
                let phase = data["phase"] as? String, phase == "end" {
                 print(">>> Agent ended, delivering response")
 
-                // For notification sessions, only show if we captured a bell message
                 if isNotificationSession {
-                    if responseBuffer.hasPrefix("🔔") {
+                    if !responseBuffer.isEmpty {
                         showActivityNudge(responseBuffer)
                         responseBuffer = ""
                     }
@@ -940,6 +939,9 @@ class GatewayClient {
             let utf8Data = message.data(using: .utf8) ?? Data()
             let utf8String = String(data: utf8Data, encoding: .utf8) ?? message
 
+            // Add to history so it shows in chat panel
+            state.addToHistory(role: "assistant", content: utf8String)
+
             // Check pizza position for bubble side
             var bubbleOnLeft = false
             if let appDelegate = NSApp.delegate as? AppDelegate,
@@ -948,19 +950,9 @@ class GatewayClient {
                 bubbleOnLeft = panelX > screen.frame.midX
             }
 
-            state.chatDisplay = ChatDisplayState(
-                isThinking: false,
-                showResponse: true,
-                botResponse: utf8String,
-                bubbleOnLeft: bubbleOnLeft
-            )
+            // Use queue system (no auto-dismiss)
+            state.showOrQueueMessage(utf8String, bubbleOnLeft: bubbleOnLeft)
             state.mood = .surprised  // Get attention!
-
-            // Hide after 8 seconds
-            DispatchQueue.main.asyncAfter(deadline: .now() + 8) {
-                state.chatDisplay = ChatDisplayState()
-                state.mood = .happy
-            }
         }
     }
 
