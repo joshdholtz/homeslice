@@ -282,6 +282,7 @@ struct KawaiiPizzaView: View {
                 Button("Quit") { NSApp.terminate(nil) }
             }
         }
+        .frame(maxWidth: .infinity, maxHeight: .infinity)
         .animation(.spring(response: 0.3), value: pizzaState.mood)
         .onAppear {
             startAnimations()
