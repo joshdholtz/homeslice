@@ -231,6 +231,11 @@ struct KawaiiPizzaView: View {
             ZStack {
                 // Pizza body
                 ZStack {
+                    // Shadow layer behind pizza
+                    PizzaShadow()
+                        .scaleEffect(breatheScale)
+                        .offset(y: 8)
+
                     PizzaSlice()
                         .scaleEffect(breatheScale)
 
@@ -533,6 +538,17 @@ struct SpeechBubble: View {
                     .shadow(radius: 2)
             )
             .offset(y: -5)
+    }
+}
+
+// MARK: - Pizza Shadow
+
+struct PizzaShadow: View {
+    var body: some View {
+        PizzaTriangle()
+            .fill(Color.black.opacity(0.15))
+            .blur(radius: 8)
+            .frame(width: 120, height: 140)
     }
 }
 
