@@ -107,8 +107,6 @@ class PizzaState: ObservableObject {
             // Skip if same app or if it's HomeSlice itself
             guard appName != self.currentApp, appName != "HomeSlice" else { return }
 
-            let previousApp = self.currentApp
-
             // Update current and add to history
             self.currentApp = appName
             self.recentApps.append((app: appName, timestamp: Date()))
@@ -119,10 +117,6 @@ class PizzaState: ObservableObject {
             }
 
             print(">>> App changed to: \(appName)")
-
-            // Activity tracking disabled - was too noisy
-            // let timestamp = DateFormatter.localizedString(from: Date(), dateStyle: .none, timeStyle: .short)
-            // GatewayClient.shared.sendActivityUpdate("[\(timestamp)] Switched from \(previousApp) to \(appName)")
         }
     }
 
@@ -411,8 +405,6 @@ class GatewayClient {
 
     // Session management
     private let pizzaSessionKey = "app:pizza:main"
-    private let activitySessionKey = "app:pizza:activity"
-    private var activitySessionInitialized = false
 
     func send(message: String, to url: String, token: String, completion: @escaping (String?) -> Void) {
         self.completion = completion
@@ -582,9 +574,6 @@ class GatewayClient {
                 return
             }
 
-            // Check if this is from activity session
-            let isActivitySession = sessionKey.contains("activity")
-
             // Capture streaming text from assistant
             if let stream = payload["stream"] as? String, stream == "assistant",
                let data = payload["data"] as? [String: Any],
@@ -610,14 +599,6 @@ class GatewayClient {
                         showActivityNudge(responseBuffer)
                         responseBuffer = ""
                     }
-                } else if isActivitySession {
-                    // For activity session, only show if it's not just an acknowledgment
-                    let response = responseBuffer.trimmingCharacters(in: .whitespacesAndNewlines)
-                    if response.count > 5 && !response.hasPrefix("📝") {
-                        // Bot has something to say! Show it
-                        showActivityNudge(response)
-                    }
-                    responseBuffer = ""
                 } else {
                     finishWithResponse()
                 }
@@ -727,49 +708,6 @@ class GatewayClient {
             "idempotencyKey": UUID().uuidString
         ]
         sendRequest(id: "2", method: "chat.send", params: params)
-    }
-
-    private var activityBuffer: [String] = []
-    private var lastActivitySend: Date = .distantPast
-
-    func sendActivityUpdate(_ activity: String) {
-        guard isConnected else { return }
-
-        // Buffer activities and send every 5 minutes
-        activityBuffer.append(activity)
-
-        let timeSinceLastSend = Date().timeIntervalSince(lastActivitySend)
-        guard timeSinceLastSend > 300 else { return }  // 5 minutes
-
-        // Initialize activity session with instructions on first use
-        if !activitySessionInitialized {
-            activitySessionInitialized = true
-            let initMessage = """
-            You are a quiet activity logger for a desktop companion. Your job:
-            1. Silently log app usage - the user switches apps A LOT for work, that's normal
-            2. Just respond with "📝" for ALL activity updates
-            3. ONLY speak up if asked directly about activity
-            4. NEVER interrupt or nudge about app switching - it's their job
-            """
-            let initParams: [String: Any] = [
-                "sessionKey": activitySessionKey,
-                "message": initMessage,
-                "idempotencyKey": UUID().uuidString
-            ]
-            sendRequest(id: "activity-init", method: "chat.send", params: initParams)
-        }
-
-        // Send batched activity summary
-        lastActivitySend = Date()
-        let summary = "Activity log (\(activityBuffer.count) switches):\n" + activityBuffer.joined(separator: "\n")
-        activityBuffer.removeAll()
-
-        let params: [String: Any] = [
-            "sessionKey": activitySessionKey,
-            "message": summary,
-            "idempotencyKey": UUID().uuidString
-        ]
-        sendRequest(id: "activity", method: "chat.send", params: params)
     }
 
     private func sendRequest(id: String, method: String, params: [String: Any]) {
