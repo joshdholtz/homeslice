@@ -523,9 +523,10 @@ class PizzaState: ObservableObject {
             )
             print(">>> Showing next queued message, \(pendingMessages.count) remaining")
         } else {
-            // No more messages
+            // No more messages - reset display and mood
             chatDisplay = ChatDisplayState(isThinking: false, showResponse: false, botResponse: "")
             pendingMessageCount = 0
+            mood = .happy
         }
     }
 
@@ -534,6 +535,7 @@ class PizzaState: ObservableObject {
         pendingMessages.removeAll()
         pendingMessageCount = 0
         chatDisplay = ChatDisplayState(isThinking: false, showResponse: false, botResponse: "")
+        mood = .happy
     }
 }
 
