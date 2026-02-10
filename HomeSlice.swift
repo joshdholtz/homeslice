@@ -654,31 +654,25 @@ class GatewayClient {
             sendConnectRequest()
 
         case "chat":
-            // Process pizza sessions OR notification sessions (main, telegram alerts)
+            // Only handle notification sessions here (main session and Telegram alerts)
+            // Pizza sessions are handled in "agent" case to avoid duplicate responses
             let sessionKey = payload["sessionKey"] as? String ?? ""
-            let isPizzaSession = sessionKey.hasPrefix("app:pizza:") || sessionKey.hasPrefix("agent:main:app:pizza:")
             let isMainSession = sessionKey.hasPrefix("session:main:") || sessionKey.hasPrefix("agent:main:session:main:")
             let isTelegramAlerts = sessionKey.contains("telegram:group:-1003723640588")
             let isNotificationSession = isMainSession || isTelegramAlerts
 
-            guard isPizzaSession || isNotificationSession else {
+            guard isNotificationSession else {
                 return
             }
 
-            // Extract assistant message content
+            // Extract assistant message content - only bell notifications
             if let message = payload["message"] as? [String: Any],
                let role = message["role"] as? String, role == "assistant",
                let content = message["content"] as? [[String: Any]] {
-                // Content is an array of content blocks
                 for block in content {
                     if let type = block["type"] as? String, type == "text",
                        let text = block["text"] as? String {
-                        // For notification sessions, only capture if starts with bell
-                        if isNotificationSession {
-                            if text.hasPrefix("🔔") {
-                                responseBuffer = text
-                            }
-                        } else {
+                        if text.hasPrefix("🔔") {
                             responseBuffer = text
                         }
                     }
@@ -686,16 +680,10 @@ class GatewayClient {
             }
             // Check for completion (state: "final")
             if let state = payload["state"] as? String, state == "final" {
-                // For notification sessions, only show if we captured a bell message
-                if isNotificationSession {
-                    if responseBuffer.hasPrefix("🔔") {
-                        print("Bell notification: \(responseBuffer.prefix(50))...")
-                        showActivityNudge(responseBuffer)
-                        responseBuffer = ""
-                    }
-                } else {
-                    print("Chat completed with response: \(responseBuffer.prefix(50))...")
-                    finishWithResponse()
+                if responseBuffer.hasPrefix("🔔") {
+                    print("Bell notification: \(responseBuffer.prefix(50))...")
+                    showActivityNudge(responseBuffer)
+                    responseBuffer = ""
                 }
             }
 
