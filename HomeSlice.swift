@@ -42,8 +42,8 @@ class AppDelegate: NSObject, NSApplicationDelegate {
     }
 
     func setupPanel() {
-        // Create floating panel (large for speech bubbles, shadow, and animations)
-        let panelSize = NSSize(width: 400, height: 400)
+        // Create floating panel (large enough for speech bubbles and shadow)
+        let panelSize = NSSize(width: 300, height: 320)
         panel = NSPanel(
             contentRect: NSRect(
                 x: NSScreen.main!.frame.midX - panelSize.width / 2,
@@ -62,7 +62,7 @@ class AppDelegate: NSObject, NSApplicationDelegate {
         panel.hasShadow = false  // Disable window shadow - we draw our own
         panel.level = .floating
         panel.collectionBehavior = [.canJoinAllSpaces, .fullScreenAuxiliary]
-        panel.isMovableByWindowBackground = false  // We handle dragging on pizza only
+        panel.isMovableByWindowBackground = true
         panel.hidesOnDeactivate = false
 
         // Add SwiftUI content
@@ -222,7 +222,6 @@ struct KawaiiPizzaView: View {
     @State private var spinAngle: Double = 0
     @State private var jumpOffset: CGFloat = 0
     @State private var danceOffset: CGFloat = 0
-    @State private var lastDragPosition: CGSize? = nil
 
     var body: some View {
         ZStack {
@@ -253,21 +252,6 @@ struct KawaiiPizzaView: View {
                         .scaleEffect(breatheScale)
                 }
                 .rotationEffect(.degrees(wiggleAngle + spinAngle))
-                .gesture(
-                    DragGesture()
-                        .onChanged { value in
-                            if let window = NSApp.windows.first(where: { $0.isVisible && $0.level == .floating }) {
-                                var newOrigin = window.frame.origin
-                                newOrigin.x += value.translation.width - (lastDragPosition?.width ?? 0)
-                                newOrigin.y -= value.translation.height - (lastDragPosition?.height ?? 0)
-                                window.setFrameOrigin(newOrigin)
-                                lastDragPosition = value.translation
-                            }
-                        }
-                        .onEnded { _ in
-                            lastDragPosition = nil
-                        }
-                )
 
                 // Speech bubble outside so it doesn't clip
                 if pizzaState.mood != .happy {
