@@ -5,59 +5,6 @@ import CryptoKit
 import Security
 import Carbon.HIToolbox
 
-// MARK: - Keychain Helpers
-
-struct KeychainHelper {
-    static let service = "com.homeslice.botToken"
-
-    static func save(_ token: String) {
-        guard let data = token.data(using: .utf8) else { return }
-
-        // Delete existing item first
-        let deleteQuery: [String: Any] = [
-            kSecClass as String: kSecClassGenericPassword,
-            kSecAttrService as String: service
-        ]
-        SecItemDelete(deleteQuery as CFDictionary)
-
-        // Add new item
-        let addQuery: [String: Any] = [
-            kSecClass as String: kSecClassGenericPassword,
-            kSecAttrService as String: service,
-            kSecValueData as String: data,
-            kSecAttrAccessible as String: kSecAttrAccessibleWhenUnlocked
-        ]
-        SecItemAdd(addQuery as CFDictionary, nil)
-    }
-
-    static func load() -> String? {
-        let query: [String: Any] = [
-            kSecClass as String: kSecClassGenericPassword,
-            kSecAttrService as String: service,
-            kSecReturnData as String: true,
-            kSecMatchLimit as String: kSecMatchLimitOne
-        ]
-
-        var result: AnyObject?
-        let status = SecItemCopyMatching(query as CFDictionary, &result)
-
-        guard status == errSecSuccess,
-              let data = result as? Data,
-              let token = String(data: data, encoding: .utf8) else {
-            return nil
-        }
-        return token
-    }
-
-    static func delete() {
-        let query: [String: Any] = [
-            kSecClass as String: kSecClassGenericPassword,
-            kSecAttrService as String: service
-        ]
-        SecItemDelete(query as CFDictionary)
-    }
-}
-
 // MARK: - Pizza State
 
 enum PizzaMood: String, CaseIterable {
@@ -131,13 +78,13 @@ class PizzaState: ObservableObject {
 
     @Published var botToken: String {
         didSet {
-            KeychainHelper.save(botToken)
+            UserDefaults.standard.set(botToken, forKey: "botToken")
         }
     }
 
     init() {
         self.botURL = UserDefaults.standard.string(forKey: "botURL") ?? ""
-        self.botToken = KeychainHelper.load() ?? ""
+        self.botToken = UserDefaults.standard.string(forKey: "botToken") ?? ""
         setupAppMonitoring()
 
         // Fetch recent history from server on startup
