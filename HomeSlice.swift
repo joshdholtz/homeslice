@@ -18,12 +18,96 @@ class PizzaState: ObservableObject {
     @Published var isVisible: Bool = true
     @Published var showParticles: Bool = false
     @Published var particleType: ParticleType = .hearts
+
+    // Chat state
+    @Published var showChatInput: Bool = false
+    @Published var chatMessage: String = ""
+    @Published var botResponse: String = ""
+    @Published var isThinking: Bool = false
+    @Published var showResponse: Bool = false
+
+    // Bot configuration (stored in UserDefaults)
+    @Published var botURL: String {
+        didSet {
+            UserDefaults.standard.set(botURL, forKey: "botURL")
+        }
+    }
+
+    init() {
+        self.botURL = UserDefaults.standard.string(forKey: "botURL") ?? ""
+    }
+
+    func sendMessage() {
+        guard !chatMessage.isEmpty, !botURL.isEmpty else { return }
+
+        let message = chatMessage
+        chatMessage = ""
+        showChatInput = false
+        isThinking = true
+        mood = .excited
+
+        ChatService.shared.send(message: message, to: botURL) { [weak self] response in
+            DispatchQueue.main.async {
+                self?.isThinking = false
+                if let response = response {
+                    self?.botResponse = response
+                    self?.showResponse = true
+                    self?.mood = .happy
+
+                    // Hide response after 5 seconds
+                    DispatchQueue.main.asyncAfter(deadline: .now() + 5) {
+                        self?.showResponse = false
+                        self?.botResponse = ""
+                    }
+                } else {
+                    self?.mood = .surprised
+                    self?.botResponse = "Couldn't reach bot!"
+                    self?.showResponse = true
+                    DispatchQueue.main.asyncAfter(deadline: .now() + 3) {
+                        self?.showResponse = false
+                        self?.botResponse = ""
+                        self?.mood = .happy
+                    }
+                }
+            }
+        }
+    }
 }
 
 enum ParticleType {
     case hearts
     case sparkles
     case stars
+}
+
+// MARK: - Chat Service
+
+class ChatService {
+    static let shared = ChatService()
+
+    func send(message: String, to urlString: String, completion: @escaping (String?) -> Void) {
+        guard let url = URL(string: urlString) else {
+            completion(nil)
+            return
+        }
+
+        var request = URLRequest(url: url)
+        request.httpMethod = "POST"
+        request.setValue("application/json", forHTTPHeaderField: "Content-Type")
+
+        let body = ["message": message]
+        request.httpBody = try? JSONSerialization.data(withJSONObject: body)
+
+        URLSession.shared.dataTask(with: request) { data, response, error in
+            guard let data = data,
+                  let json = try? JSONSerialization.jsonObject(with: data) as? [String: Any],
+                  let reply = json["reply"] as? String else {
+                completion(nil)
+                return
+            }
+            completion(reply)
+        }.resume()
+    }
 }
 
 // MARK: - App Delegate
@@ -146,11 +230,43 @@ class AppDelegate: NSObject, NSApplicationDelegate {
 
         menu.addItem(NSMenuItem.separator())
 
+        // Chat
+        let chatItem = NSMenuItem(title: "Chat with Bot", action: #selector(showChat), keyEquivalent: "c")
+        chatItem.target = self
+        menu.addItem(chatItem)
+
+        let configItem = NSMenuItem(title: "Configure Bot URL...", action: #selector(configureBotURL), keyEquivalent: ",")
+        configItem.target = self
+        menu.addItem(configItem)
+
+        menu.addItem(NSMenuItem.separator())
+
         // Quit
         let quitItem = NSMenuItem(title: "Quit HomeSlice", action: #selector(NSApplication.terminate(_:)), keyEquivalent: "q")
         menu.addItem(quitItem)
 
         statusItem.menu = menu
+    }
+
+    @objc func showChat() {
+        pizzaState.showChatInput = true
+    }
+
+    @objc func configureBotURL() {
+        let alert = NSAlert()
+        alert.messageText = "Configure Bot URL"
+        alert.informativeText = "Enter the URL for your bot (e.g., http://100.x.x.x:8080/chat)"
+        alert.addButton(withTitle: "Save")
+        alert.addButton(withTitle: "Cancel")
+
+        let input = NSTextField(frame: NSRect(x: 0, y: 0, width: 300, height: 24))
+        input.stringValue = pizzaState.botURL
+        input.placeholderString = "http://your-bot-url/chat"
+        alert.accessoryView = input
+
+        if alert.runModal() == .alertFirstButtonReturn {
+            pizzaState.botURL = input.stringValue
+        }
     }
 
     @objc func changeMood(_ sender: NSMenuItem) {
@@ -253,18 +369,46 @@ struct KawaiiPizzaView: View {
                 }
                 .rotationEffect(.degrees(wiggleAngle + spinAngle))
 
-                // Speech bubble outside so it doesn't clip
-                if pizzaState.mood != .happy {
+                // Speech bubble for mood
+                if pizzaState.mood != .happy && !pizzaState.showChatInput && !pizzaState.showResponse && !pizzaState.isThinking {
                     SpeechBubble(mood: pizzaState.mood)
                         .offset(x: 50, y: -50)
+                        .transition(.scale.combined(with: .opacity))
+                }
+
+                // Thinking indicator
+                if pizzaState.isThinking {
+                    ThinkingBubble()
+                        .offset(x: 60, y: -60)
+                        .transition(.scale.combined(with: .opacity))
+                }
+
+                // Bot response bubble
+                if pizzaState.showResponse {
+                    ResponseBubble(message: pizzaState.botResponse)
+                        .offset(x: 70, y: -70)
+                        .transition(.scale.combined(with: .opacity))
+                }
+
+                // Chat input
+                if pizzaState.showChatInput {
+                    ChatInputBubble()
+                        .environmentObject(pizzaState)
+                        .offset(x: 80, y: -80)
                         .transition(.scale.combined(with: .opacity))
                 }
             }
             .offset(x: danceOffset, y: bobOffset + jumpOffset)
             .onTapGesture {
-                handleTap()
+                if pizzaState.botURL.isEmpty {
+                    handleTap()
+                } else {
+                    pizzaState.showChatInput.toggle()
+                }
             }
             .contextMenu {
+                Button("Chat") { pizzaState.showChatInput = true }
+                Divider()
                 Button("Happy") { pizzaState.mood = .happy }
                 Button("Excited") { pizzaState.mood = .excited }
                 Button("Sleepy") { pizzaState.mood = .sleepy }
@@ -546,6 +690,89 @@ struct SpeechBubble: View {
                     .shadow(radius: 2)
             )
             .offset(y: -5)
+    }
+}
+
+// MARK: - Chat UI Components
+
+struct ChatInputBubble: View {
+    @EnvironmentObject var pizzaState: PizzaState
+    @FocusState private var isFocused: Bool
+
+    var body: some View {
+        HStack(spacing: 4) {
+            TextField("Ask me...", text: $pizzaState.chatMessage)
+                .textFieldStyle(.plain)
+                .font(.system(size: 12))
+                .frame(width: 120)
+                .focused($isFocused)
+                .onSubmit {
+                    pizzaState.sendMessage()
+                }
+
+            Button(action: { pizzaState.sendMessage() }) {
+                Image(systemName: "arrow.up.circle.fill")
+                    .foregroundColor(.blue)
+            }
+            .buttonStyle(.plain)
+
+            Button(action: { pizzaState.showChatInput = false }) {
+                Image(systemName: "xmark.circle.fill")
+                    .foregroundColor(.gray)
+            }
+            .buttonStyle(.plain)
+        }
+        .padding(8)
+        .background(
+            RoundedRectangle(cornerRadius: 12)
+                .fill(.white)
+                .shadow(radius: 3)
+        )
+        .onAppear { isFocused = true }
+    }
+}
+
+struct ThinkingBubble: View {
+    @State private var dotCount = 0
+
+    var body: some View {
+        HStack(spacing: 4) {
+            ForEach(0..<3) { i in
+                Circle()
+                    .fill(Color.gray)
+                    .frame(width: 8, height: 8)
+                    .opacity(dotCount > i ? 1 : 0.3)
+            }
+        }
+        .padding(10)
+        .background(
+            RoundedRectangle(cornerRadius: 12)
+                .fill(.white)
+                .shadow(radius: 3)
+        )
+        .onAppear {
+            Timer.scheduledTimer(withTimeInterval: 0.3, repeats: true) { _ in
+                dotCount = (dotCount + 1) % 4
+            }
+        }
+    }
+}
+
+struct ResponseBubble: View {
+    let message: String
+
+    var body: some View {
+        Text(message)
+            .font(.system(size: 11))
+            .foregroundColor(.primary)
+            .padding(10)
+            .frame(maxWidth: 180)
+            .background(
+                RoundedRectangle(cornerRadius: 12)
+                    .fill(.white)
+                    .shadow(radius: 3)
+            )
+            .fixedSize(horizontal: false, vertical: true)
     }
 }
 
