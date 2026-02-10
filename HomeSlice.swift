@@ -231,11 +231,6 @@ struct KawaiiPizzaView: View {
             ZStack {
                 // Pizza body
                 ZStack {
-                    // Shadow layer behind pizza
-                    PizzaShadow()
-                        .scaleEffect(breatheScale)
-                        .offset(y: 8)
-
                     PizzaSlice()
                         .scaleEffect(breatheScale)
 
@@ -252,6 +247,13 @@ struct KawaiiPizzaView: View {
                         .transition(.scale.combined(with: .opacity))
                 }
             }
+            .background(
+                // Shadow completely outside the pizza view hierarchy
+                PizzaShadow()
+                    .scaleEffect(breatheScale)
+                    .rotationEffect(.degrees(wiggleAngle + spinAngle))
+                    .offset(y: 10)
+            )
             .offset(x: danceOffset, y: bobOffset + jumpOffset)
             .onTapGesture {
                 handleTap()
