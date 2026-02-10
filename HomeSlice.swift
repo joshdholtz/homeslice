@@ -49,6 +49,13 @@ class PizzaState: ObservableObject {
     @Published var showChatInput: Bool = false
     @Published var chatMessage: String = ""
     @Published var chatDisplay: ChatDisplayState = ChatDisplayState()
+    @Published var isHoveringResponse: Bool = false  // Prevents auto-dismiss when hovering
+
+    // Chat UI preferences
+    var showExpandedChat: Bool {
+        get { UserDefaults.standard.bool(forKey: "showExpandedChat") }
+        set { UserDefaults.standard.set(newValue, forKey: "showExpandedChat") }
+    }
 
     // Active app tracking
     @Published var currentApp: String = ""
@@ -185,11 +192,8 @@ class PizzaState: ObservableObject {
                     )
                     self.mood = .happy
 
-                    // Hide response after 10 seconds
-                    DispatchQueue.main.asyncAfter(deadline: .now() + 10) {
-                        print(">>> Hiding response after timeout")
-                        self.chatDisplay = ChatDisplayState(isThinking: false, showResponse: false, botResponse: "")
-                    }
+                    // Hide response after delay (unless hovering)
+                    self.scheduleResponseHide(delay: 10)
                 } else {
                     // Single atomic update for error
                     self.chatDisplay = ChatDisplayState(
@@ -199,13 +203,40 @@ class PizzaState: ObservableObject {
                     )
                     self.mood = .surprised
 
-                    DispatchQueue.main.asyncAfter(deadline: .now() + 3) {
-                        self.chatDisplay = ChatDisplayState(isThinking: false, showResponse: false, botResponse: "")
-                        self.mood = .happy
-                    }
+                    self.scheduleResponseHide(delay: 3)
                 }
             }
         }
+    }
+
+    private var responseHideTask: DispatchWorkItem?
+
+    func scheduleResponseHide(delay: Double) {
+        // Cancel any existing hide task
+        responseHideTask?.cancel()
+
+        let task = DispatchWorkItem { [weak self] in
+            guard let self = self else { return }
+
+            // Don't hide if user is hovering over the bubble
+            if self.isHoveringResponse {
+                // Reschedule for later
+                self.scheduleResponseHide(delay: 2)
+                return
+            }
+
+            print(">>> Hiding response after timeout")
+            self.chatDisplay = ChatDisplayState(isThinking: false, showResponse: false, botResponse: "")
+            self.mood = .happy
+        }
+
+        responseHideTask = task
+        DispatchQueue.main.asyncAfter(deadline: .now() + delay, execute: task)
+    }
+
+    func dismissResponse() {
+        responseHideTask?.cancel()
+        chatDisplay = ChatDisplayState(isThinking: false, showResponse: false, botResponse: "")
     }
 }
 
@@ -1146,11 +1177,14 @@ class AppDelegate: NSObject, NSApplicationDelegate {
     @objc func showChat() {
         if chatPopover == nil {
             chatPopover = NSPopover()
-            chatPopover?.contentSize = NSSize(width: 320, height: 450)
             chatPopover?.behavior = .transient
             chatPopover?.animates = true
             chatPopover?.contentViewController = ChatPopoverController(pizzaState: pizzaState)
         }
+
+        // Update size based on expanded state
+        let isExpanded = UserDefaults.standard.bool(forKey: "showExpandedChat")
+        chatPopover?.contentSize = NSSize(width: 320, height: isExpanded ? 450 : 100)
 
         if let popover = chatPopover {
             if popover.isShown {
@@ -1426,53 +1460,76 @@ class ChatPopoverController: NSViewController {
 struct FullChatView: View {
     @EnvironmentObject var pizzaState: PizzaState
     @State private var inputText: String = ""
+    @State private var isExpanded: Bool = UserDefaults.standard.bool(forKey: "showExpandedChat")
     @FocusState private var isInputFocused: Bool
 
     var body: some View {
         VStack(spacing: 0) {
-            // Header
+            // Header with expand/collapse toggle
             HStack {
                 Text("🍕 HomeSlice")
                     .font(.headline)
                 Spacer()
-                if !pizzaState.chatHistory.isEmpty {
-                    Text("\(pizzaState.chatHistory.count) messages")
-                        .font(.caption)
-                        .foregroundColor(.secondary)
+
+                // Expand/collapse button
+                Button(action: {
+                    withAnimation(.easeInOut(duration: 0.2)) {
+                        isExpanded.toggle()
+                        UserDefaults.standard.set(isExpanded, forKey: "showExpandedChat")
+                    }
+                }) {
+                    HStack(spacing: 4) {
+                        if !pizzaState.chatHistory.isEmpty {
+                            Text("\(pizzaState.chatHistory.count)")
+                                .font(.caption)
+                                .foregroundColor(.secondary)
+                        }
+                        Image(systemName: isExpanded ? "chevron.down.circle.fill" : "chevron.up.circle.fill")
+                            .font(.system(size: 18))
+                            .foregroundColor(.blue)
+                    }
                 }
+                .buttonStyle(.plain)
+                .help(isExpanded ? "Hide history" : "Show history")
             }
             .padding(.horizontal)
             .padding(.vertical, 10)
 
-            Divider()
+            // History section (collapsible)
+            if isExpanded {
+                Divider()
 
-            // Messages
-            if pizzaState.chatHistory.isEmpty {
-                Spacer()
-                Text("Say hi! 👋")
-                    .foregroundColor(.secondary)
-                Spacer()
-            } else {
-                ScrollViewReader { proxy in
-                    ScrollView {
-                        LazyVStack(alignment: .leading, spacing: 8) {
-                            ForEach(pizzaState.chatHistory) { message in
-                                ChatHistoryBubble(message: message)
-                                    .id(message.id)
+                if pizzaState.chatHistory.isEmpty {
+                    VStack {
+                        Spacer()
+                        Text("No messages yet")
+                            .foregroundColor(.secondary)
+                        Spacer()
+                    }
+                    .frame(height: 300)
+                } else {
+                    ScrollViewReader { proxy in
+                        ScrollView {
+                            LazyVStack(alignment: .leading, spacing: 8) {
+                                ForEach(pizzaState.chatHistory) { message in
+                                    ChatHistoryBubble(message: message)
+                                        .id(message.id)
+                                }
+                            }
+                            .padding()
+                        }
+                        .frame(height: 300)
+                        .onChange(of: pizzaState.chatHistory.count) {
+                            if let last = pizzaState.chatHistory.last {
+                                withAnimation {
+                                    proxy.scrollTo(last.id, anchor: .bottom)
+                                }
                             }
                         }
-                        .padding()
-                    }
-                    .onChange(of: pizzaState.chatHistory.count) {
-                        if let last = pizzaState.chatHistory.last {
-                            withAnimation {
+                        .onAppear {
+                            if let last = pizzaState.chatHistory.last {
                                 proxy.scrollTo(last.id, anchor: .bottom)
                             }
-                        }
-                    }
-                    .onAppear {
-                        if let last = pizzaState.chatHistory.last {
-                            proxy.scrollTo(last.id, anchor: .bottom)
                         }
                     }
                 }
@@ -1480,7 +1537,7 @@ struct FullChatView: View {
 
             Divider()
 
-            // Input area
+            // Input area (always visible)
             HStack(spacing: 8) {
                 TextField("Ask me anything...", text: $inputText)
                     .textFieldStyle(.roundedBorder)
@@ -1499,7 +1556,8 @@ struct FullChatView: View {
             }
             .padding()
         }
-        .frame(width: 320, height: 450)
+        .frame(width: 320)
+        .fixedSize(horizontal: false, vertical: true)
         .onAppear {
             isInputFocused = true
         }
@@ -1590,6 +1648,7 @@ struct KawaiiPizzaView: View {
                 // Bot response bubble - position based on pizza screen location
                 if pizzaState.chatDisplay.showResponse {
                     ResponseBubble(message: pizzaState.chatDisplay.botResponse)
+                        .environmentObject(pizzaState)
                         .offset(
                             x: pizzaState.chatDisplay.bubbleOnLeft ? -160 : 160,
                             y: -60
@@ -2026,17 +2085,29 @@ struct ThinkingBubble: View {
 }
 
 struct ResponseBubble: View {
+    @EnvironmentObject var pizzaState: PizzaState
     let message: String
-    var onLeft: Bool = false  // Show bubble on left side of pizza
+    var onLeft: Bool = false
+    @State private var isHovering = false
 
     var body: some View {
-        ScrollView {
-            Text(message)
-                .font(.system(size: 14))
-                .foregroundColor(.black)
-                .multilineTextAlignment(.leading)
-                .fixedSize(horizontal: false, vertical: true)
-                .frame(maxWidth: .infinity, alignment: .leading)
+        VStack(alignment: .leading, spacing: 8) {
+            ScrollView {
+                Text(message)
+                    .font(.system(size: 14))
+                    .foregroundColor(.black)
+                    .multilineTextAlignment(.leading)
+                    .fixedSize(horizontal: false, vertical: true)
+                    .frame(maxWidth: .infinity, alignment: .leading)
+            }
+
+            // Tap hint
+            HStack {
+                Spacer()
+                Text("tap for history")
+                    .font(.caption2)
+                    .foregroundColor(.secondary)
+            }
         }
         .padding(12)
         .frame(width: 280)
@@ -2047,6 +2118,14 @@ struct ResponseBubble: View {
                 .fill(Color.white)
                 .shadow(color: .black.opacity(0.25), radius: 4)
         )
+        .onHover { hovering in
+            isHovering = hovering
+            pizzaState.isHoveringResponse = hovering
+        }
+        .onTapGesture {
+            pizzaState.dismissResponse()
+            NotificationCenter.default.post(name: .showChatDialog, object: nil)
+        }
     }
 }
 
