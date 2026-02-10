@@ -71,11 +71,11 @@ class PizzaState: ObservableObject {
                     let truncated = String(response.prefix(500))
                     print(">>> Response received (len=\(truncated.count))")
 
-                    // DEBUG: showResponse=true but empty text
+                    // DEBUG: hardcoded simple text
                     self.chatDisplay = ChatDisplayState(
                         isThinking: false,
                         showResponse: true,
-                        botResponse: ""  // empty text
+                        botResponse: "Hello world"  // simple hardcoded text
                     )
                     self.mood = .happy
 
