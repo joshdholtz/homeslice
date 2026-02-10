@@ -22,6 +22,14 @@ struct ChatDisplayState: Equatable {
     var bubbleOnLeft: Bool = false  // Position bubble based on pizza location
 }
 
+// Chat message for history
+struct ChatMessage: Identifiable, Equatable {
+    let id = UUID()
+    let role: String  // "user" or "assistant"
+    let content: String
+    let timestamp: Date
+}
+
 class PizzaState: ObservableObject {
     static let shared = PizzaState()
     @Published var mood: PizzaMood = .happy
@@ -38,6 +46,10 @@ class PizzaState: ObservableObject {
     @Published var currentApp: String = ""
     var recentApps: [(app: String, timestamp: Date)] = []
     private let maxRecentApps = 20
+
+    // Chat history
+    @Published var chatHistory: [ChatMessage] = []
+    private let maxHistoryMessages = 50
 
     // Bot configuration (stored in UserDefaults)
     @Published var botURL: String {
@@ -96,6 +108,14 @@ class PizzaState: ObservableObject {
         }
     }
 
+    func addToHistory(role: String, content: String) {
+        let message = ChatMessage(role: role, content: content, timestamp: Date())
+        chatHistory.append(message)
+        if chatHistory.count > maxHistoryMessages {
+            chatHistory.removeFirst()
+        }
+    }
+
     func getAppContext() -> String {
         var context = "Current app: \(currentApp)"
         if recentApps.count > 1 {
@@ -119,6 +139,9 @@ class PizzaState: ObservableObject {
         chatMessage = ""
         showChatInput = false
 
+        // Add user message to history
+        addToHistory(role: "user", content: message)
+
         // Single atomic update to start thinking
         chatDisplay = ChatDisplayState(isThinking: true, showResponse: false, botResponse: "")
         mood = .excited
@@ -133,6 +156,9 @@ class PizzaState: ObservableObject {
                     let utf8Data = response.data(using: .utf8) ?? Data()
                     let utf8String = String(data: utf8Data, encoding: .utf8) ?? "Got it!"
                     print(">>> Response (len=\(utf8String.count))")
+
+                    // Add bot response to history
+                    self.addToHistory(role: "assistant", content: utf8String)
 
                     // Check if pizza is on right side of screen -> bubble on left
                     var bubbleOnLeft = false
@@ -740,6 +766,7 @@ class AppDelegate: NSObject, NSApplicationDelegate {
     var statusItem: NSStatusItem!
     let pizzaState = PizzaState.shared
     var chatPopover: NSPopover?
+    var historyPopover: NSPopover?
 
     func applicationDidFinishLaunching(_ notification: Notification) {
         // Hide from dock
@@ -752,6 +779,11 @@ class AppDelegate: NSObject, NSApplicationDelegate {
         // Watch for chat dialog trigger
         NotificationCenter.default.addObserver(forName: .showChatDialog, object: nil, queue: .main) { [weak self] _ in
             self?.showChat()
+        }
+
+        // Watch for history dialog trigger
+        NotificationCenter.default.addObserver(forName: .showHistoryDialog, object: nil, queue: .main) { [weak self] _ in
+            self?.showHistory()
         }
     }
 
@@ -900,6 +932,10 @@ class AppDelegate: NSObject, NSApplicationDelegate {
         chatItem.target = self
         menu.addItem(chatItem)
 
+        let historyItem = NSMenuItem(title: "View History", action: #selector(showHistory), keyEquivalent: "h")
+        historyItem.target = self
+        menu.addItem(historyItem)
+
         let configItem = NSMenuItem(title: "Configure Bot URL...", action: #selector(configureBotURL), keyEquivalent: ",")
         configItem.target = self
         menu.addItem(configItem)
@@ -911,6 +947,26 @@ class AppDelegate: NSObject, NSApplicationDelegate {
         menu.addItem(quitItem)
 
         statusItem.menu = menu
+    }
+
+    @objc func showHistory() {
+        if historyPopover == nil {
+            historyPopover = NSPopover()
+            historyPopover?.contentSize = NSSize(width: 300, height: 400)
+            historyPopover?.behavior = .transient
+            historyPopover?.animates = true
+            historyPopover?.contentViewController = HistoryPopoverController(pizzaState: pizzaState)
+        }
+
+        if let popover = historyPopover {
+            if popover.isShown {
+                popover.close()
+            } else {
+                let panelBounds = panel.contentView!.bounds
+                let rect = NSRect(x: panelBounds.midX - 10, y: panelBounds.midY, width: 20, height: 20)
+                popover.show(relativeTo: rect, of: panel.contentView!, preferredEdge: .maxY)
+            }
+        }
     }
 
     @objc func showChat() {
@@ -1062,6 +1118,109 @@ class AppDelegate: NSObject, NSApplicationDelegate {
     }
 }
 
+// MARK: - History Popover Controller
+
+class HistoryPopoverController: NSViewController {
+    let pizzaState: PizzaState
+
+    init(pizzaState: PizzaState) {
+        self.pizzaState = pizzaState
+        super.init(nibName: nil, bundle: nil)
+    }
+
+    required init?(coder: NSCoder) {
+        fatalError("init(coder:) not implemented")
+    }
+
+    override func loadView() {
+        let historyView = ChatHistoryView().environmentObject(pizzaState)
+        let hostingView = NSHostingView(rootView: historyView)
+        hostingView.frame = NSRect(x: 0, y: 0, width: 300, height: 400)
+        self.view = hostingView
+    }
+}
+
+struct ChatHistoryView: View {
+    @EnvironmentObject var pizzaState: PizzaState
+
+    var body: some View {
+        VStack(spacing: 0) {
+            // Header
+            HStack {
+                Text("Chat History")
+                    .font(.headline)
+                Spacer()
+                Text("\(pizzaState.chatHistory.count) messages")
+                    .font(.caption)
+                    .foregroundColor(.secondary)
+            }
+            .padding()
+
+            Divider()
+
+            // Messages
+            if pizzaState.chatHistory.isEmpty {
+                Spacer()
+                Text("No messages yet")
+                    .foregroundColor(.secondary)
+                Spacer()
+            } else {
+                ScrollViewReader { proxy in
+                    ScrollView {
+                        LazyVStack(alignment: .leading, spacing: 8) {
+                            ForEach(pizzaState.chatHistory) { message in
+                                ChatHistoryBubble(message: message)
+                                    .id(message.id)
+                            }
+                        }
+                        .padding()
+                    }
+                    .onAppear {
+                        // Scroll to bottom
+                        if let last = pizzaState.chatHistory.last {
+                            proxy.scrollTo(last.id, anchor: .bottom)
+                        }
+                    }
+                }
+            }
+        }
+        .frame(width: 300, height: 400)
+    }
+}
+
+struct ChatHistoryBubble: View {
+    let message: ChatMessage
+
+    var isUser: Bool { message.role == "user" }
+
+    var body: some View {
+        HStack {
+            if isUser { Spacer() }
+
+            VStack(alignment: isUser ? .trailing : .leading, spacing: 2) {
+                Text(message.content)
+                    .font(.system(size: 12))
+                    .padding(8)
+                    .background(isUser ? Color.blue : Color.gray.opacity(0.2))
+                    .foregroundColor(isUser ? .white : .primary)
+                    .cornerRadius(12)
+
+                Text(timeString)
+                    .font(.caption2)
+                    .foregroundColor(.secondary)
+            }
+
+            if !isUser { Spacer() }
+        }
+    }
+
+    var timeString: String {
+        let formatter = DateFormatter()
+        formatter.timeStyle = .short
+        return formatter.string(from: message.timestamp)
+    }
+}
+
 // MARK: - Chat Popover Controller
 
 class ChatPopoverController: NSViewController {
@@ -1127,6 +1286,7 @@ extension Notification.Name {
     static let doJump = Notification.Name("doJump")
     static let doDance = Notification.Name("doDance")
     static let showChatDialog = Notification.Name("showChatDialog")
+    static let showHistoryDialog = Notification.Name("showHistoryDialog")
 }
 
 // MARK: - Kawaii Pizza View
@@ -1206,8 +1366,12 @@ struct KawaiiPizzaView: View {
                 if pizzaState.botURL.isEmpty {
                     handleTap()
                 } else {
-                    // Use menu bar chat which pops up a dialog
-                    NotificationCenter.default.post(name: .showChatDialog, object: nil)
+                    // Check for Option key
+                    if NSEvent.modifierFlags.contains(.option) {
+                        NotificationCenter.default.post(name: .showHistoryDialog, object: nil)
+                    } else {
+                        NotificationCenter.default.post(name: .showChatDialog, object: nil)
+                    }
                 }
             }
             .contextMenu {
