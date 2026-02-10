@@ -14,6 +14,13 @@ enum PizzaMood: String, CaseIterable {
     case surprised = "Surprised"
 }
 
+// Single struct for chat display state - enables atomic updates
+struct ChatDisplayState: Equatable {
+    var isThinking: Bool = false
+    var showResponse: Bool = false
+    var botResponse: String = ""
+}
+
 class PizzaState: ObservableObject {
     static let shared = PizzaState()
     @Published var mood: PizzaMood = .happy
@@ -21,12 +28,10 @@ class PizzaState: ObservableObject {
     @Published var showParticles: Bool = false
     @Published var particleType: ParticleType = .hearts
 
-    // Chat state
+    // Chat state - single published property for atomic updates
     @Published var showChatInput: Bool = false
     @Published var chatMessage: String = ""
-    @Published var botResponse: String = ""
-    @Published var isThinking: Bool = false
-    @Published var showResponse: Bool = false
+    @Published var chatDisplay: ChatDisplayState = ChatDisplayState()
 
     // Bot configuration (stored in UserDefaults)
     @Published var botURL: String {
@@ -52,45 +57,45 @@ class PizzaState: ObservableObject {
         let message = chatMessage
         chatMessage = ""
         showChatInput = false
-        isThinking = true
+
+        // Single atomic update to start thinking
+        chatDisplay = ChatDisplayState(isThinking: true, showResponse: false, botResponse: "")
         mood = .excited
 
         GatewayClient.shared.send(message: message, to: botURL, token: botToken) { [weak self] response in
-            print(">>> Completion handler called with response: \(response?.prefix(30) ?? "nil")")
+            print(">>> Completion handler called")
             DispatchQueue.main.async {
-                print(">>> On main thread, setting state...")
-                self?.isThinking = false
-                if let response = response {
-                    // Truncate very long responses to prevent UI issues
-                    let truncated = String(response.prefix(500))
-                    print(">>> Setting botResponse (len=\(truncated.count))")
-                    self?.botResponse = truncated
-                    print(">>> Setting showResponse = true")
-                    self?.showResponse = true
-                    print(">>> Setting mood = happy")
-                    self?.mood = .happy
-                    print(">>> State update complete!")
+                guard let self = self else { return }
 
-                    // Ensure panel stays visible
-                    if let appDelegate = NSApp.delegate as? AppDelegate {
-                        print(">>> Bringing panel to front")
-                        appDelegate.panel.orderFrontRegardless()
-                    }
+                if let response = response {
+                    let truncated = String(response.prefix(500))
+                    print(">>> Setting response atomically (len=\(truncated.count))")
+
+                    // Single atomic update - triggers only ONE re-render
+                    self.chatDisplay = ChatDisplayState(
+                        isThinking: false,
+                        showResponse: true,
+                        botResponse: truncated
+                    )
+                    self.mood = .happy
 
                     // Hide response after 10 seconds
                     DispatchQueue.main.asyncAfter(deadline: .now() + 10) {
                         print(">>> Hiding response after timeout")
-                        self?.showResponse = false
-                        self?.botResponse = ""
+                        self.chatDisplay = ChatDisplayState(isThinking: false, showResponse: false, botResponse: "")
                     }
                 } else {
-                    self?.mood = .surprised
-                    self?.botResponse = "Couldn't reach bot!"
-                    self?.showResponse = true
+                    // Single atomic update for error
+                    self.chatDisplay = ChatDisplayState(
+                        isThinking: false,
+                        showResponse: true,
+                        botResponse: "Couldn't reach bot!"
+                    )
+                    self.mood = .surprised
+
                     DispatchQueue.main.asyncAfter(deadline: .now() + 3) {
-                        self?.showResponse = false
-                        self?.botResponse = ""
-                        self?.mood = .happy
+                        self.chatDisplay = ChatDisplayState(isThinking: false, showResponse: false, botResponse: "")
+                        self.mood = .happy
                     }
                 }
             }
@@ -796,11 +801,14 @@ class AppDelegate: NSObject, NSApplicationDelegate {
 
     @objc func testResponse() {
         print(">>> testResponse called")
-        pizzaState.isThinking = false
-        pizzaState.botResponse = "Test message from menu!"
-        pizzaState.showResponse = true
+        // Single atomic update
+        pizzaState.chatDisplay = ChatDisplayState(
+            isThinking: false,
+            showResponse: true,
+            botResponse: "Test message from menu!"
+        )
         pizzaState.mood = .happy
-        print(">>> testResponse set, showResponse=\(pizzaState.showResponse)")
+        print(">>> testResponse set atomically")
     }
 
     @objc func resetPosition() {
@@ -995,16 +1003,14 @@ struct KawaiiPizzaView: View {
                 }
 
                 // Thinking indicator
-                if pizzaState.isThinking {
-                    let _ = print(">>> isThinking=true, showing dots")
+                if pizzaState.chatDisplay.isThinking {
                     ThinkingBubble()
                         .offset(x: 60, y: -60)
                 }
 
                 // Bot response bubble
-                if pizzaState.showResponse {
-                    let _ = print(">>> showResponse=true, rendering bubble")
-                    ResponseBubble(message: pizzaState.botResponse)
+                if pizzaState.chatDisplay.showResponse {
+                    ResponseBubble(message: pizzaState.chatDisplay.botResponse)
                         .offset(x: 70, y: -70)
                 }
 
@@ -1408,6 +1414,7 @@ struct ChatInputBubble: View {
 
 struct ThinkingBubble: View {
     @State private var dotCount = 0
+    @State private var timer: Timer?
 
     var body: some View {
         HStack(spacing: 4) {
@@ -1425,9 +1432,13 @@ struct ThinkingBubble: View {
                 .shadow(color: .black.opacity(0.2), radius: 3)
         )
         .onAppear {
-            Timer.scheduledTimer(withTimeInterval: 0.3, repeats: true) { _ in
+            timer = Timer.scheduledTimer(withTimeInterval: 0.3, repeats: true) { _ in
                 dotCount = (dotCount + 1) % 4
             }
+        }
+        .onDisappear {
+            timer?.invalidate()
+            timer = nil
         }
     }
 }
