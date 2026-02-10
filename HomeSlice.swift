@@ -548,8 +548,8 @@ struct SpeechBubble: View {
 struct PizzaShadow: View {
     var body: some View {
         PizzaTriangle()
-            .fill(Color.black.opacity(0.15))
-            .blur(radius: 8)
+            .fill(Color.black.opacity(0.12))
+            .scaleEffect(1.05)
             .frame(width: 120, height: 140)
     }
 }
