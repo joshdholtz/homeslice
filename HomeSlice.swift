@@ -671,6 +671,11 @@ class AppDelegate: NSObject, NSApplicationDelegate {
         resetItem.target = self
         menu.addItem(resetItem)
 
+        // Test response (debug)
+        let testItem = NSMenuItem(title: "Test Response", action: #selector(testResponse), keyEquivalent: "t")
+        testItem.target = self
+        menu.addItem(testItem)
+
         // Fun actions submenu
         let actionsMenuItem = NSMenuItem(title: "Actions", action: nil, keyEquivalent: "")
         let actionsSubmenu = NSMenu()
@@ -784,6 +789,15 @@ class AppDelegate: NSObject, NSApplicationDelegate {
         if let mood = sender.representedObject as? PizzaMood {
             pizzaState.mood = mood
         }
+    }
+
+    @objc func testResponse() {
+        print(">>> testResponse called")
+        pizzaState.isThinking = false
+        pizzaState.botResponse = "Test message from menu!"
+        pizzaState.showResponse = true
+        pizzaState.mood = .happy
+        print(">>> testResponse set, showResponse=\(pizzaState.showResponse)")
     }
 
     @objc func resetPosition() {
