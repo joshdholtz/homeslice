@@ -1309,7 +1309,7 @@ struct FullChatView: View {
                         }
                         .padding()
                     }
-                    .onChange(of: pizzaState.chatHistory.count) { _ in
+                    .onChange(of: pizzaState.chatHistory.count) {
                         if let last = pizzaState.chatHistory.last {
                             withAnimation {
                                 proxy.scrollTo(last.id, anchor: .bottom)
