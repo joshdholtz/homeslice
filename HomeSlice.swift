@@ -400,6 +400,13 @@ class GatewayClient {
             sendConnectRequest()
 
         case "chat":
+            // Only process if we have a currentRunId (actual user message, not init)
+            let runId = payload["runId"] as? String
+            guard currentRunId != nil, runId == currentRunId else {
+                print(">>> Ignoring chat event for runId: \(runId ?? "nil") (waiting for: \(currentRunId ?? "nil"))")
+                return
+            }
+
             // Extract assistant message content
             if let message = payload["message"] as? [String: Any],
                let role = message["role"] as? String, role == "assistant",
@@ -449,9 +456,11 @@ class GatewayClient {
                 completion?(nil)
             }
         } else if id == "init" {
-            // Session initialization response
+            // Session initialization response - ignore the response content
             if ok {
                 print(">>> Session initialized with concise mode")
+                // Clear any buffered response from init
+                responseBuffer = ""
                 // Now send the actual pending message
                 if let msg = pendingMessage {
                     pendingMessage = nil
@@ -644,7 +653,7 @@ class AppDelegate: NSObject, NSApplicationDelegate {
 
     func setupPanel() {
         // Create floating panel (huge to test transparent click-through)
-        let panelSize = NSSize(width: 500, height: 300)
+        let panelSize = NSSize(width: 600, height: 300)
         panel = NSPanel(
             contentRect: NSRect(
                 x: NSScreen.main!.frame.midX - panelSize.width / 2,
@@ -865,7 +874,7 @@ class AppDelegate: NSObject, NSApplicationDelegate {
 
             // Force recreate the window content
             panel.alphaValue = 1.0
-            panel.setFrame(NSRect(x: x, y: y, width: 500, height: 300), display: true)
+            panel.setFrame(NSRect(x: x, y: y, width: 600, height: 300), display: true)
             panel.orderFrontRegardless()
             panel.makeKeyAndOrderFront(nil)
 
