@@ -1010,10 +1010,11 @@ struct KawaiiPizzaView: View {
                         .offset(x: 60, y: -60)
                 }
 
-                // Bot response bubble
+                // Bot response bubble - positioned absolutely so it doesn't affect layout
                 if pizzaState.chatDisplay.showResponse {
                     ResponseBubble(message: pizzaState.chatDisplay.botResponse)
-                        .offset(x: 70, y: -70)
+                        .fixedSize()
+                        .position(x: 370, y: 230)  // Absolute position in 600x600 window
                 }
 
                 // Chat input
