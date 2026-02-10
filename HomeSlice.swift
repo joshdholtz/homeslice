@@ -3,6 +3,7 @@ import SwiftUI
 import Combine
 import CryptoKit
 import Security
+import Carbon.HIToolbox
 
 // MARK: - Pizza State
 
@@ -810,6 +811,7 @@ class AppDelegate: NSObject, NSApplicationDelegate {
     let pizzaState = PizzaState.shared
     var chatPopover: NSPopover?
     var historyPopover: NSPopover?
+    var hotKeyRef: EventHotKeyRef?
 
     func applicationDidFinishLaunching(_ notification: Notification) {
         // Hide from dock
@@ -818,6 +820,7 @@ class AppDelegate: NSObject, NSApplicationDelegate {
         setupPanel()
         setupMenuBar()
         setupMainMenu()
+        setupGlobalHotkey()
 
         // Watch for chat dialog trigger
         NotificationCenter.default.addObserver(forName: .showChatDialog, object: nil, queue: .main) { [weak self] _ in
@@ -832,6 +835,38 @@ class AppDelegate: NSObject, NSApplicationDelegate {
         // Watch for hide chat dialog trigger
         NotificationCenter.default.addObserver(forName: .hideChatDialog, object: nil, queue: .main) { [weak self] _ in
             self?.chatPopover?.close()
+        }
+    }
+
+    func setupGlobalHotkey() {
+        // Register ⌘⇧C to open chat
+        let hotKeyID = EventHotKeyID(signature: OSType(0x484D5343), id: 1)  // "HMSC"
+        var hotKeyRef: EventHotKeyRef?
+
+        // Key codes: C = 8, modifiers: cmdKey = 256, shiftKey = 512
+        let modifiers: UInt32 = UInt32(cmdKey | shiftKey)
+        let keyCode: UInt32 = 8  // 'C' key
+
+        let status = RegisterEventHotKey(keyCode, modifiers, hotKeyID,
+                                          GetApplicationEventTarget(), 0, &hotKeyRef)
+
+        if status == noErr {
+            self.hotKeyRef = hotKeyRef
+            print(">>> Global hotkey ⌘⇧C registered")
+
+            // Install event handler
+            var eventType = EventTypeSpec(eventClass: OSType(kEventClassKeyboard),
+                                          eventKind: UInt32(kEventHotKeyPressed))
+
+            InstallEventHandler(GetApplicationEventTarget(), { (_, event, _) -> OSStatus in
+                // Trigger chat dialog on main thread
+                DispatchQueue.main.async {
+                    NotificationCenter.default.post(name: .showChatDialog, object: nil)
+                }
+                return noErr
+            }, 1, &eventType, nil, nil)
+        } else {
+            print(">>> Failed to register hotkey: \(status)")
         }
     }
 
