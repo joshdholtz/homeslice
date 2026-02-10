@@ -19,6 +19,7 @@ struct ChatDisplayState: Equatable {
     var isThinking: Bool = false
     var showResponse: Bool = false
     var botResponse: String = ""
+    var bubbleOnLeft: Bool = false  // Position bubble based on pizza location
 }
 
 class PizzaState: ObservableObject {
@@ -73,10 +74,19 @@ class PizzaState: ObservableObject {
                     let utf8String = String(data: utf8Data, encoding: .utf8) ?? "Got it!"
                     print(">>> Response (len=\(utf8String.count))")
 
+                    // Check if pizza is on right side of screen -> bubble on left
+                    var bubbleOnLeft = false
+                    if let appDelegate = NSApp.delegate as? AppDelegate,
+                       let screen = NSScreen.main {
+                        let panelX = appDelegate.panel.frame.midX
+                        bubbleOnLeft = panelX > screen.frame.midX
+                    }
+
                     self.chatDisplay = ChatDisplayState(
                         isThinking: false,
                         showResponse: true,
-                        botResponse: utf8String
+                        botResponse: utf8String,
+                        bubbleOnLeft: bubbleOnLeft
                     )
                     self.mood = .happy
 
@@ -1012,10 +1022,13 @@ struct KawaiiPizzaView: View {
                         .offset(x: 60, y: -60)
                 }
 
-                // Bot response bubble - use offset from pizza center
+                // Bot response bubble - position based on pizza screen location
                 if pizzaState.chatDisplay.showResponse {
                     ResponseBubble(message: pizzaState.chatDisplay.botResponse)
-                        .offset(x: 80, y: -80)
+                        .offset(
+                            x: pizzaState.chatDisplay.bubbleOnLeft ? -160 : 160,
+                            y: -60
+                        )
                 }
 
                 // Chat input
@@ -1449,6 +1462,7 @@ struct ThinkingBubble: View {
 
 struct ResponseBubble: View {
     let message: String
+    var onLeft: Bool = false  // Show bubble on left side of pizza
 
     var body: some View {
         ScrollView {
@@ -1460,8 +1474,8 @@ struct ResponseBubble: View {
                 .frame(maxWidth: .infinity, alignment: .leading)
         }
         .padding(12)
-        .frame(width: 220)
-        .frame(maxHeight: 200)  // Grows with content, max 200
+        .frame(width: 280)
+        .frame(maxHeight: 200)
         .fixedSize(horizontal: false, vertical: true)
         .background(
             RoundedRectangle(cornerRadius: 12)
