@@ -69,13 +69,13 @@ class PizzaState: ObservableObject {
 
                 if let response = response {
                     let truncated = String(response.prefix(500))
-                    print(">>> Setting response atomically (len=\(truncated.count))")
+                    print(">>> Response received (len=\(truncated.count)), just hiding dots")
 
-                    // Single atomic update - triggers only ONE re-render
+                    // DEBUG: Just hide thinking, don't show response
                     self.chatDisplay = ChatDisplayState(
                         isThinking: false,
-                        showResponse: true,
-                        botResponse: truncated
+                        showResponse: false,
+                        botResponse: ""
                     )
                     self.mood = .happy
 
