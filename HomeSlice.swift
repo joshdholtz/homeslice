@@ -505,9 +505,12 @@ class GatewayClient {
     }
 
     private func sendChatMessage(_ message: String) {
+        // Prefix for concise responses
+        let prefixedMessage = "CONCISE MODE: Answer in 1–3 sentences unless I ask for detail. No preamble.\n\n\(message)"
+
         let params: [String: Any] = [
             "sessionKey": "main",
-            "message": message,
+            "message": prefixedMessage,
             "idempotencyKey": UUID().uuidString
         ]
         sendRequest(id: "2", method: "chat.send", params: params)
