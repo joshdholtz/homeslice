@@ -68,11 +68,11 @@ class PizzaState: ObservableObject {
                 guard let self = self else { return }
 
                 if let response = response {
-                    // Force UTF8 encoding
+                    // Force UTF8 encoding, keep newlines for multi-line display
                     let utf8Data = response.data(using: .utf8) ?? Data()
                     let utf8String = String(data: utf8Data, encoding: .utf8) ?? "Got it!"
-                    let truncated = String(utf8String.prefix(150))
-                    print(">>> UTF8 response (len=\(truncated.count)): \(truncated.prefix(50))...")
+                    let truncated = String(utf8String.prefix(300))
+                    print(">>> Response (len=\(truncated.count))")
 
                     self.chatDisplay = ChatDisplayState(
                         isThinking: false,
@@ -1449,18 +1449,18 @@ struct ResponseBubble: View {
     let message: String
 
     var body: some View {
-        let _ = print(">>> ResponseBubble rendering: \(message.prefix(30))...")
         Text(message)
-            .font(.system(size: 11))
+            .font(.system(size: 14))
             .foregroundColor(.black)
-            .padding(10)
-            .frame(maxWidth: 180)
+            .lineLimit(6)
+            .multilineTextAlignment(.leading)
+            .padding(12)
+            .frame(maxWidth: 200, alignment: .leading)
             .background(
                 RoundedRectangle(cornerRadius: 12)
                     .fill(Color.white)
-                    .shadow(color: .black.opacity(0.2), radius: 3)
+                    .shadow(color: .black.opacity(0.25), radius: 4)
             )
-            .fixedSize(horizontal: false, vertical: true)
     }
 }
 
