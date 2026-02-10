@@ -144,6 +144,7 @@ class PizzaState: ObservableObject {
         let message = chatMessage
         chatMessage = ""
         showChatInput = false
+        NotificationCenter.default.post(name: .hideChatDialog, object: nil)
 
         // Add user message to history
         addToHistory(role: "user", content: message)
@@ -482,9 +483,12 @@ class GatewayClient {
             sendConnectRequest()
 
         case "chat":
-            // Only process events from our pizza sessions (not main web session)
+            // Process pizza sessions OR main session (for bell notifications)
             let sessionKey = payload["sessionKey"] as? String ?? ""
-            guard sessionKey.hasPrefix("app:pizza:") || sessionKey.hasPrefix("agent:main:app:pizza:") else {
+            let isPizzaSession = sessionKey.hasPrefix("app:pizza:") || sessionKey.hasPrefix("agent:main:app:pizza:")
+            let isMainSession = sessionKey.hasPrefix("session:main:") || sessionKey.hasPrefix("agent:main:session:main:")
+
+            guard isPizzaSession || isMainSession else {
                 return
             }
 
@@ -496,20 +500,39 @@ class GatewayClient {
                 for block in content {
                     if let type = block["type"] as? String, type == "text",
                        let text = block["text"] as? String {
-                        responseBuffer = text
+                        // For main session, only capture if starts with bell
+                        if isMainSession {
+                            if text.hasPrefix("🔔") {
+                                responseBuffer = text
+                            }
+                        } else {
+                            responseBuffer = text
+                        }
                     }
                 }
             }
             // Check for completion (state: "final")
             if let state = payload["state"] as? String, state == "final" {
-                print("Chat completed with response: \(responseBuffer.prefix(50))...")
-                finishWithResponse()
+                // For main session, only show if we captured a bell message
+                if isMainSession {
+                    if responseBuffer.hasPrefix("🔔") {
+                        print("Bell notification from main: \(responseBuffer.prefix(50))...")
+                        showActivityNudge(responseBuffer)
+                        responseBuffer = ""
+                    }
+                } else {
+                    print("Chat completed with response: \(responseBuffer.prefix(50))...")
+                    finishWithResponse()
+                }
             }
 
         case "agent":
-            // Only process events from our pizza sessions
+            // Process pizza sessions OR main session (for bell notifications)
             let sessionKey = payload["sessionKey"] as? String ?? ""
-            guard sessionKey.hasPrefix("agent:main:app:pizza:") else {
+            let isPizzaSession = sessionKey.hasPrefix("agent:main:app:pizza:")
+            let isMainSession = sessionKey.hasPrefix("agent:main:session:main:")
+
+            guard isPizzaSession || isMainSession else {
                 return
             }
 
@@ -520,7 +543,14 @@ class GatewayClient {
             if let stream = payload["stream"] as? String, stream == "assistant",
                let data = payload["data"] as? [String: Any],
                let text = data["text"] as? String {
-                responseBuffer = text  // text is accumulated, not delta
+                // For main session, only capture if starts with bell
+                if isMainSession {
+                    if text.hasPrefix("🔔") {
+                        responseBuffer = text
+                    }
+                } else {
+                    responseBuffer = text  // text is accumulated, not delta
+                }
             }
 
             // Check for run completion
@@ -528,8 +558,14 @@ class GatewayClient {
                let phase = data["phase"] as? String, phase == "end" {
                 print(">>> Agent ended, delivering response")
 
-                // For activity session, only show if it's not just an acknowledgment
-                if isActivitySession {
+                // For main session, only show if we captured a bell message
+                if isMainSession {
+                    if responseBuffer.hasPrefix("🔔") {
+                        showActivityNudge(responseBuffer)
+                        responseBuffer = ""
+                    }
+                } else if isActivitySession {
+                    // For activity session, only show if it's not just an acknowledgment
                     let response = responseBuffer.trimmingCharacters(in: .whitespacesAndNewlines)
                     if response.count > 5 && !response.hasPrefix("📝") {
                         // Bot has something to say! Show it
@@ -790,6 +826,11 @@ class AppDelegate: NSObject, NSApplicationDelegate {
         // Watch for history dialog trigger
         NotificationCenter.default.addObserver(forName: .showHistoryDialog, object: nil, queue: .main) { [weak self] _ in
             self?.showHistory()
+        }
+
+        // Watch for hide chat dialog trigger
+        NotificationCenter.default.addObserver(forName: .hideChatDialog, object: nil, queue: .main) { [weak self] _ in
+            self?.chatPopover?.close()
         }
     }
 
@@ -1367,6 +1408,7 @@ extension Notification.Name {
     static let doDance = Notification.Name("doDance")
     static let showChatDialog = Notification.Name("showChatDialog")
     static let showHistoryDialog = Notification.Name("showHistoryDialog")
+    static let hideChatDialog = Notification.Name("hideChatDialog")
 }
 
 // MARK: - Kawaii Pizza View
@@ -1898,116 +1940,142 @@ struct KawaiiCat: View {
     let isBlinking: Bool
     let mood: PizzaMood
 
+    // Cream/peach colored cat - warm and friendly
+    let furColor = Color(red: 1.0, green: 0.92, blue: 0.82)
+    let furShadow = Color(red: 0.95, green: 0.85, blue: 0.75)
+    let earPink = Color(red: 1.0, green: 0.75, blue: 0.8)
+    let noseColor = Color(red: 1.0, green: 0.6, blue: 0.65)
+
     var body: some View {
         ZStack {
-            // Body
-            Ellipse()
-                .fill(
-                    LinearGradient(
-                        colors: [Color.orange.opacity(0.9), Color.orange.opacity(0.7)],
-                        startPoint: .top,
-                        endPoint: .bottom
-                    )
-                )
-                .frame(width: 100, height: 80)
-                .offset(y: 30)
-
-            // Head
-            Circle()
-                .fill(
-                    LinearGradient(
-                        colors: [Color.orange.opacity(0.95), Color.orange.opacity(0.75)],
-                        startPoint: .top,
-                        endPoint: .bottom
-                    )
-                )
-                .frame(width: 90, height: 90)
-
+            // Ears behind head - triangular, pointing UP from top of head
             // Left ear
             CatEar()
-                .fill(Color.orange.opacity(0.9))
-                .frame(width: 30, height: 35)
-                .offset(x: -30, y: -40)
-
-            // Left ear inner
+                .fill(furColor)
+                .frame(width: 32, height: 38)
+                .offset(x: -28, y: -52)
             CatEar()
-                .fill(Color.pink.opacity(0.4))
-                .frame(width: 15, height: 18)
-                .offset(x: -30, y: -35)
+                .fill(earPink)
+                .frame(width: 16, height: 20)
+                .offset(x: -28, y: -48)
 
             // Right ear
             CatEar()
-                .fill(Color.orange.opacity(0.9))
-                .frame(width: 30, height: 35)
-                .offset(x: 30, y: -40)
-
-            // Right ear inner
+                .fill(furColor)
+                .frame(width: 32, height: 38)
+                .offset(x: 28, y: -52)
             CatEar()
-                .fill(Color.pink.opacity(0.4))
-                .frame(width: 15, height: 18)
-                .offset(x: 30, y: -35)
+                .fill(earPink)
+                .frame(width: 16, height: 20)
+                .offset(x: 28, y: -48)
 
-            // Face
+            // Main head - slightly wider oval, like a real cat face
+            Ellipse()
+                .fill(
+                    RadialGradient(
+                        colors: [furColor, furShadow],
+                        center: .top,
+                        startRadius: 20,
+                        endRadius: 70
+                    )
+                )
+                .frame(width: 100, height: 90)
+
+            // Cheek fluffs - little bumps on sides
+            Circle()
+                .fill(furColor)
+                .frame(width: 25, height: 25)
+                .offset(x: -42, y: 10)
+            Circle()
+                .fill(furColor)
+                .frame(width: 25, height: 25)
+                .offset(x: 42, y: 10)
+
+            // Eyes - big and cute
             KawaiiFace(isBlinking: isBlinking, mood: mood)
-                .offset(y: 5)
+                .offset(y: -5)
 
-            // Whiskers left
-            WhiskerGroup()
-                .offset(x: -35, y: 15)
+            // Cute little nose - oval, not triangle
+            Ellipse()
+                .fill(noseColor)
+                .frame(width: 12, height: 9)
+                .offset(y: 12)
 
-            // Whiskers right
-            WhiskerGroup()
+            // Mouth - simple "w" shape cat mouth
+            CatMouth()
+                .stroke(Color(red: 0.6, green: 0.45, blue: 0.4), lineWidth: 2)
+                .frame(width: 20, height: 10)
+                .offset(y: 22)
+
+            // Whiskers - simple lines
+            CatWhiskers()
+                .offset(x: -30, y: 18)
+            CatWhiskers()
                 .scaleEffect(x: -1, y: 1)
-                .offset(x: 35, y: 15)
+                .offset(x: 30, y: 18)
 
-            // Tail
-            CatTail()
-                .stroke(Color.orange.opacity(0.8), lineWidth: 12)
-                .frame(width: 40, height: 50)
-                .offset(x: 50, y: 50)
+            // Rosy cheeks
+            Circle()
+                .fill(Color.pink.opacity(0.35))
+                .frame(width: 18, height: 18)
+                .offset(x: -28, y: 8)
+            Circle()
+                .fill(Color.pink.opacity(0.35))
+                .frame(width: 18, height: 18)
+                .offset(x: 28, y: 8)
         }
         .frame(width: 120, height: 140)
     }
 }
 
+// Simple triangular cat ear
 struct CatEar: Shape {
     func path(in rect: CGRect) -> Path {
         var path = Path()
         path.move(to: CGPoint(x: rect.midX, y: 0))
-        path.addLine(to: CGPoint(x: 0, y: rect.height))
-        path.addLine(to: CGPoint(x: rect.width, y: rect.height))
+        path.addLine(to: CGPoint(x: rect.width * 0.1, y: rect.height))
+        path.addLine(to: CGPoint(x: rect.width * 0.9, y: rect.height))
         path.closeSubpath()
         return path
     }
 }
 
-struct WhiskerGroup: View {
-    var body: some View {
-        VStack(spacing: 4) {
-            Whisker().rotationEffect(.degrees(-10))
-            Whisker()
-            Whisker().rotationEffect(.degrees(10))
-        }
-    }
-}
-
-struct Whisker: View {
-    var body: some View {
-        Rectangle()
-            .fill(Color.gray.opacity(0.5))
-            .frame(width: 25, height: 2)
-    }
-}
-
-struct CatTail: Shape {
+// Cat "w" shaped mouth
+struct CatMouth: Shape {
     func path(in rect: CGRect) -> Path {
         var path = Path()
-        path.move(to: CGPoint(x: 0, y: rect.height))
+        path.move(to: CGPoint(x: 0, y: 0))
+        path.addQuadCurve(
+            to: CGPoint(x: rect.midX, y: rect.height),
+            control: CGPoint(x: rect.width * 0.25, y: rect.height * 0.8)
+        )
         path.addQuadCurve(
             to: CGPoint(x: rect.width, y: 0),
-            control: CGPoint(x: rect.width * 0.8, y: rect.height * 0.8)
+            control: CGPoint(x: rect.width * 0.75, y: rect.height * 0.8)
         )
         return path
+    }
+}
+
+// Simple whisker lines
+struct CatWhiskers: View {
+    var body: some View {
+        ZStack {
+            // Three whiskers angled out
+            Rectangle()
+                .fill(Color(red: 0.5, green: 0.4, blue: 0.35))
+                .frame(width: 22, height: 1.5)
+                .rotationEffect(.degrees(-10))
+                .offset(y: -5)
+            Rectangle()
+                .fill(Color(red: 0.5, green: 0.4, blue: 0.35))
+                .frame(width: 24, height: 1.5)
+            Rectangle()
+                .fill(Color(red: 0.5, green: 0.4, blue: 0.35))
+                .frame(width: 22, height: 1.5)
+                .rotationEffect(.degrees(10))
+                .offset(y: 5)
+        }
     }
 }
 
