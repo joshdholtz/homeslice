@@ -209,8 +209,19 @@ class GatewayClient {
         }
 
         let config = URLSessionConfiguration.default
-        session = URLSession(configuration: config)
+        session = URLSession(configuration: config, delegate: nil, delegateQueue: OperationQueue.main)
         webSocket = session?.webSocketTask(with: url)
+
+        // Send a ping to test connection
+        webSocket?.sendPing { [weak self] error in
+            if let error = error {
+                print("WebSocket ping failed: \(error.localizedDescription)")
+                self?.completion?(nil)
+            } else {
+                print("WebSocket connected successfully!")
+            }
+        }
+
         webSocket?.resume()
         receiveMessage()
     }
@@ -240,12 +251,16 @@ class GatewayClient {
     }
 
     private func handleMessage(_ text: String) {
+        print("Received: \(text.prefix(200))...")
+
         guard let data = text.data(using: .utf8),
               let json = try? JSONSerialization.jsonObject(with: data) as? [String: Any] else {
+            print("Failed to parse JSON")
             return
         }
 
         let type = json["type"] as? String ?? ""
+        print("Message type: \(type)")
 
         switch type {
         case "event":
@@ -253,6 +268,7 @@ class GatewayClient {
         case "res":
             handleResponse(json)
         default:
+            print("Unknown message type: \(type)")
             break
         }
     }
@@ -260,9 +276,11 @@ class GatewayClient {
     private func handleEvent(_ json: [String: Any]) {
         let event = json["event"] as? String ?? ""
         let payload = json["payload"] as? [String: Any] ?? [:]
+        print("Event: \(event)")
 
         switch event {
         case "connect.challenge":
+            print("Got challenge, sending connect request...")
             challengeNonce = payload["nonce"] as? String
             challengeTs = payload["ts"] as? Int64
             sendConnectRequest()
@@ -375,12 +393,17 @@ class GatewayClient {
 
         guard let data = try? JSONSerialization.data(withJSONObject: request),
               let text = String(data: data, encoding: .utf8) else {
+            print("Failed to serialize request")
             return
         }
+
+        print("Sending \(method): \(text.prefix(200))...")
 
         webSocket?.send(.string(text)) { error in
             if let error = error {
                 print("Send error: \(error)")
+            } else {
+                print("Sent \(method) successfully")
             }
         }
     }
