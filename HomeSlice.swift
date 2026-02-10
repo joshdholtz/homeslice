@@ -109,9 +109,9 @@ class PizzaState: ObservableObject {
 
             print(">>> App changed to: \(appName)")
 
-            // Send activity update to bot
-            let timestamp = DateFormatter.localizedString(from: Date(), dateStyle: .none, timeStyle: .short)
-            GatewayClient.shared.sendActivityUpdate("[\(timestamp)] Switched from \(previousApp) to \(appName)")
+            // Activity tracking disabled - was too noisy
+            // let timestamp = DateFormatter.localizedString(from: Date(), dateStyle: .none, timeStyle: .short)
+            // GatewayClient.shared.sendActivityUpdate("[\(timestamp)] Switched from \(previousApp) to \(appName)")
         }
     }
 
@@ -672,9 +672,9 @@ class GatewayClient {
     }
 
     private func sendChatMessage(_ message: String) {
-        // Include app context and concise mode
+        // Include app context and VERY concise mode
         let appContext = PizzaState.shared.getAppContext()
-        let prefixedMessage = "[CONCISE: 1-3 sentences max]\n[\(appContext)]\n\(message)"
+        let prefixedMessage = "[ULTRA BRIEF: Reply in 1-2 SHORT sentences only. No lists, no details, no elaboration. Be like a text message.]\n[\(appContext)]\n\(message)"
 
         let params: [String: Any] = [
             "sessionKey": pizzaSessionKey,
