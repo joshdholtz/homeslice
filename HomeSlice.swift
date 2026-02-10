@@ -238,8 +238,6 @@ struct KawaiiPizzaView: View {
                         .offset(y: 15)
                         .scaleEffect(breatheScale)
                 }
-                .compositingGroup()
-                .shadow(color: .black.opacity(0.2), radius: 10, x: 0, y: 6)
                 .rotationEffect(.degrees(wiggleAngle + spinAngle))
 
                 // Speech bubble outside so it doesn't clip
