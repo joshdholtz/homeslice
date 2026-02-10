@@ -42,8 +42,8 @@ class AppDelegate: NSObject, NSApplicationDelegate {
     }
 
     func setupPanel() {
-        // Create floating panel (larger to accommodate animations and shadow)
-        let panelSize = NSSize(width: 220, height: 280)
+        // Create floating panel (extra large to accommodate animations and shadow)
+        let panelSize = NSSize(width: 300, height: 350)
         panel = NSPanel(
             contentRect: NSRect(
                 x: NSScreen.main!.frame.midX - panelSize.width / 2,
