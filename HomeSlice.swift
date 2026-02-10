@@ -776,6 +776,8 @@ class GatewayClient {
             // Connect response
             if ok {
                 isConnected = true
+                // Subscribe to Telegram alerts session
+                subscribeToAlerts()
                 if let msg = pendingMessage {
                     pendingMessage = nil
                     sendChatMessage(msg)
@@ -784,6 +786,14 @@ class GatewayClient {
                 let error = payload["error"] as? String ?? "Connection failed"
                 print("Connect failed: \(error)")
                 completion?(nil)
+            }
+        } else if id == "3" {
+            // sessions.subscribe response
+            if ok {
+                print("[Alerts] Subscribed to Telegram alerts session")
+            } else {
+                let error = payload["error"] as? String ?? "Subscribe failed"
+                print("[Alerts] Subscribe failed: \(error)")
             }
         } else if id == "2" {
             // chat.send response
@@ -853,6 +863,17 @@ class GatewayClient {
         }
 
         sendRequest(id: "1", method: "connect", params: params)
+    }
+
+    private func subscribeToAlerts() {
+        // Subscribe to Telegram alerts group session for live notifications
+        let alertsSessionKey = "agent:main:telegram:group:-1003723640588"
+        let params: [String: Any] = [
+            "sessionKeys": [alertsSessionKey],
+            "events": ["chat", "agent"]
+        ]
+        print("[Alerts] Subscribing to \(alertsSessionKey)")
+        sendRequest(id: "3", method: "sessions.subscribe", params: params)
     }
 
     private func sendChatMessage(_ message: String) {
