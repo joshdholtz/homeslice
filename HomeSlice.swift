@@ -68,16 +68,15 @@ class PizzaState: ObservableObject {
                 guard let self = self else { return }
 
                 if let response = response {
-                    // Force UTF8 encoding, keep newlines for multi-line display
+                    // Force UTF8 encoding, no truncation - bubble is scrollable
                     let utf8Data = response.data(using: .utf8) ?? Data()
                     let utf8String = String(data: utf8Data, encoding: .utf8) ?? "Got it!"
-                    let truncated = String(utf8String.prefix(300))
-                    print(">>> Response (len=\(truncated.count))")
+                    print(">>> Response (len=\(utf8String.count))")
 
                     self.chatDisplay = ChatDisplayState(
                         isThinking: false,
                         showResponse: true,
-                        botResponse: truncated
+                        botResponse: utf8String
                     )
                     self.mood = .happy
 
@@ -1449,18 +1448,20 @@ struct ResponseBubble: View {
     let message: String
 
     var body: some View {
-        Text(message)
-            .font(.system(size: 14))
-            .foregroundColor(.black)
-            .lineLimit(6)
-            .multilineTextAlignment(.leading)
-            .padding(12)
-            .frame(maxWidth: 200, alignment: .leading)
-            .background(
-                RoundedRectangle(cornerRadius: 12)
-                    .fill(Color.white)
-                    .shadow(color: .black.opacity(0.25), radius: 4)
-            )
+        ScrollView {
+            Text(message)
+                .font(.system(size: 14))
+                .foregroundColor(.black)
+                .multilineTextAlignment(.leading)
+                .frame(maxWidth: .infinity, alignment: .leading)
+        }
+        .padding(12)
+        .frame(width: 220, height: 150)
+        .background(
+            RoundedRectangle(cornerRadius: 12)
+                .fill(Color.white)
+                .shadow(color: .black.opacity(0.25), radius: 4)
+        )
     }
 }
 
