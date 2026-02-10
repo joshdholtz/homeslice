@@ -42,8 +42,8 @@ class AppDelegate: NSObject, NSApplicationDelegate {
     }
 
     func setupPanel() {
-        // Create floating panel (large enough for speech bubbles and shadow)
-        let panelSize = NSSize(width: 300, height: 320)
+        // Create floating panel (huge to test transparent click-through)
+        let panelSize = NSSize(width: 600, height: 600)
         panel = NSPanel(
             contentRect: NSRect(
                 x: NSScreen.main!.frame.midX - panelSize.width / 2,
