@@ -787,13 +787,25 @@ class AppDelegate: NSObject, NSApplicationDelegate {
     }
 
     @objc func resetPosition() {
+        print(">>> resetPosition called")
+        print(">>> panel exists: \(panel != nil)")
+        print(">>> panel.isVisible: \(panel.isVisible)")
+        print(">>> panel.alphaValue: \(panel.alphaValue)")
+        print(">>> panel.frame: \(panel.frame)")
+        print(">>> panel.contentView: \(String(describing: panel.contentView))")
+        print(">>> panel.contentView.frame: \(panel.contentView?.frame ?? .zero)")
+
         if let screen = NSScreen.main {
-            let x = screen.frame.midX - panel.frame.width / 2
-            let y = screen.frame.midY - panel.frame.height / 2
-            panel.setFrameOrigin(NSPoint(x: x, y: y))
-            panel.setContentSize(NSSize(width: 600, height: 600))
+            let x = screen.frame.midX - 300
+            let y = screen.frame.midY - 300
+
+            // Force recreate the window content
+            panel.alphaValue = 1.0
+            panel.setFrame(NSRect(x: x, y: y, width: 600, height: 600), display: true)
             panel.orderFrontRegardless()
-            print(">>> Panel reset - frame: \(panel.frame), visible: \(panel.isVisible)")
+            panel.makeKeyAndOrderFront(nil)
+
+            print(">>> After reset - frame: \(panel.frame), visible: \(panel.isVisible)")
         }
     }
 
