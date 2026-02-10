@@ -209,11 +209,11 @@ class PizzaState: ObservableObject {
         httpURL += "/tools/invoke"
 
         guard let url = URL(string: httpURL) else {
-            print(">>> Invalid history URL: \(httpURL)")
+            print("[History] Invalid URL: \(httpURL)")
             return
         }
 
-        print(">>> Fetching history from: \(httpURL)")
+        print("[History] Fetching from: \(httpURL)")
 
         var request = URLRequest(url: url)
         request.httpMethod = "POST"
@@ -235,79 +235,51 @@ class PizzaState: ObservableObject {
 
         URLSession.shared.dataTask(with: request) { [weak self] data, response, error in
             guard let data = data, error == nil else {
-                print(">>> History fetch error: \(error?.localizedDescription ?? "unknown")")
+                print("[History] Error: \(error?.localizedDescription ?? "unknown")")
                 return
-            }
-
-            // Debug: print raw response
-            if let responseStr = String(data: data, encoding: .utf8) {
-                print(">>> History raw response: \(responseStr.prefix(1000))")
             }
 
             // Parse response
             guard let json = try? JSONSerialization.jsonObject(with: data) as? [String: Any] else {
-                print(">>> Failed to parse history response as JSON")
+                print("[History] Failed to parse JSON")
                 return
             }
 
-            print(">>> History JSON keys: \(json.keys)")
-
-            // Extract messages from response - the API returns result.content[0].text as a JSON string
+            // Extract messages - API returns result.content[0].text as JSON string
             var messages: [[String: Any]] = []
             if let msgs = json["messages"] as? [[String: Any]] {
                 messages = msgs
-                print(">>> Found messages at top level")
-            } else if let result = json["result"] as? [String: Any] {
-                print(">>> Has result, keys: \(result.keys)")
-                // Check if result.content[0].text contains JSON string
-                if let content = result["content"] as? [[String: Any]] {
-                    print(">>> result.content has \(content.count) blocks")
-                    if let firstBlock = content.first {
-                        print(">>> First block keys: \(firstBlock.keys)")
-                        if let textString = firstBlock["text"] as? String {
-                            print(">>> text string length: \(textString.count)")
-                            print(">>> text preview: \(textString.prefix(500))")
-                            if let textData = textString.data(using: .utf8),
-                               let innerJson = try? JSONSerialization.jsonObject(with: textData) as? [String: Any] {
-                                print(">>> Parsed inner JSON, keys: \(innerJson.keys)")
-                                if let msgs = innerJson["messages"] as? [[String: Any]] {
-                                    messages = msgs
-                                    print(">>> Parsed \(msgs.count) messages from result.content[0].text")
-                                }
-                            }
-                        }
-                    }
-                } else if let msgs = result["messages"] as? [[String: Any]] {
-                    messages = msgs
-                    print(">>> Found messages in result.messages")
-                }
+            } else if let result = json["result"] as? [String: Any],
+                      let content = result["content"] as? [[String: Any]],
+                      let firstBlock = content.first,
+                      let textString = firstBlock["text"] as? String,
+                      let textData = textString.data(using: .utf8),
+                      let innerJson = try? JSONSerialization.jsonObject(with: textData) as? [String: Any],
+                      let msgs = innerJson["messages"] as? [[String: Any]] {
+                messages = msgs
             }
 
-            if messages.isEmpty {
-                print(">>> No messages found in response structure")
+            guard !messages.isEmpty else {
+                // Print raw response for debugging
+                let raw = String(data: data, encoding: .utf8) ?? "nil"
+                print("[History] No messages found. Response: \(raw.prefix(500))")
                 return
             }
 
-            print(">>> Found \(messages.count) messages in history")
+            print("[History] Found \(messages.count) messages")
 
             DispatchQueue.main.async {
                 guard let self = self else { return }
 
                 var loadedMessages: [ChatMessage] = []
 
-                for (i, msg) in messages.enumerated() {
+                for msg in messages {
                     let role = msg["role"] as? String ?? "unknown"
-                    print(">>> Message \(i): role=\(role)")
-
-                    guard role == "user" || role == "assistant" else {
-                        print(">>> Skipping non-user/assistant role")
-                        continue
-                    }
+                    guard role == "user" || role == "assistant" else { continue }
 
                     // Extract text content
                     var text = ""
                     if let content = msg["content"] as? [[String: Any]] {
-                        print(">>> Content is array with \(content.count) blocks")
                         for block in content {
                             if let type = block["type"] as? String, type == "text",
                                let blockText = block["text"] as? String {
@@ -316,32 +288,30 @@ class PizzaState: ObservableObject {
                         }
                     } else if let content = msg["content"] as? String {
                         text = content
-                        print(">>> Content is string")
-                    } else {
-                        print(">>> Content type unknown: \(type(of: msg["content"]))")
                     }
 
-                    print(">>> Extracted text length: \(text.count)")
-                    guard !text.isEmpty else {
-                        print(">>> Skipping empty text")
-                        continue
-                    }
+                    guard !text.isEmpty else { continue }
 
-                    // Parse timestamp if available
+                    // Parse timestamp if available (could be createdAt string or timestamp int)
                     var timestamp = Date()
                     if let createdAt = msg["createdAt"] as? String {
                         let formatter = ISO8601DateFormatter()
                         formatter.formatOptions = [.withInternetDateTime, .withFractionalSeconds]
                         timestamp = formatter.date(from: createdAt) ?? Date()
+                    } else if let ts = msg["timestamp"] as? Int64 {
+                        timestamp = Date(timeIntervalSince1970: Double(ts) / 1000.0)
+                    } else if let ts = msg["timestamp"] as? Int {
+                        timestamp = Date(timeIntervalSince1970: Double(ts) / 1000.0)
                     }
 
                     loadedMessages.append(ChatMessage(role: role, content: text, timestamp: timestamp))
                 }
 
                 if !loadedMessages.isEmpty {
-                    // Replace history with loaded messages (they're older)
                     self.chatHistory = loadedMessages
-                    print(">>> Loaded \(loadedMessages.count) messages from history")
+                    print("[History] Loaded \(loadedMessages.count) messages into chat")
+                } else {
+                    print("[History] No valid messages to display")
                 }
             }
         }.resume()
