@@ -608,19 +608,27 @@ class GatewayClient {
         sendRequest(id: "2", method: "chat.send", params: params)
     }
 
+    private var activityBuffer: [String] = []
+    private var lastActivitySend: Date = .distantPast
+
     func sendActivityUpdate(_ activity: String) {
         guard isConnected else { return }
+
+        // Buffer activities and send every 5 minutes
+        activityBuffer.append(activity)
+
+        let timeSinceLastSend = Date().timeIntervalSince(lastActivitySend)
+        guard timeSinceLastSend > 300 else { return }  // 5 minutes
 
         // Initialize activity session with instructions on first use
         if !activitySessionInitialized {
             activitySessionInitialized = true
             let initMessage = """
-            You are an activity logger for a desktop companion app. Your job:
-            1. Silently log app switches the user makes
-            2. Track patterns (what apps they use, how often they switch)
-            3. When asked, summarize what they've been doing
-            4. Optionally nudge if they seem distracted (too many switches)
-            Keep responses under 2 sentences. Just acknowledge with "📝" for normal logs.
+            You are a quiet activity logger for a desktop companion. Your job:
+            1. Silently log app usage - the user switches apps A LOT for work, that's normal
+            2. Just respond with "📝" for ALL activity updates
+            3. ONLY speak up if asked directly about activity
+            4. NEVER interrupt or nudge about app switching - it's their job
             """
             let initParams: [String: Any] = [
                 "sessionKey": activitySessionKey,
@@ -630,10 +638,14 @@ class GatewayClient {
             sendRequest(id: "activity-init", method: "chat.send", params: initParams)
         }
 
-        // Send the activity update
+        // Send batched activity summary
+        lastActivitySend = Date()
+        let summary = "Activity log (\(activityBuffer.count) switches):\n" + activityBuffer.joined(separator: "\n")
+        activityBuffer.removeAll()
+
         let params: [String: Any] = [
             "sessionKey": activitySessionKey,
-            "message": activity,
+            "message": summary,
             "idempotencyKey": UUID().uuidString
         ]
         sendRequest(id: "activity", method: "chat.send", params: params)
