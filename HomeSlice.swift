@@ -71,6 +71,12 @@ class PizzaState: ObservableObject {
                     self?.mood = .happy
                     print(">>> State update complete!")
 
+                    // Ensure panel stays visible
+                    if let appDelegate = NSApp.delegate as? AppDelegate {
+                        print(">>> Bringing panel to front")
+                        appDelegate.panel.orderFrontRegardless()
+                    }
+
                     // Hide response after 10 seconds
                     DispatchQueue.main.asyncAfter(deadline: .now() + 10) {
                         print(">>> Hiding response after timeout")
@@ -869,8 +875,10 @@ class ChatPopoverController: NSViewController {
         pizzaState.sendMessage()
 
         // Close popover after sending
-        if let popover = (NSApp.delegate as? AppDelegate)?.chatPopover {
-            popover.close()
+        if let appDelegate = NSApp.delegate as? AppDelegate {
+            appDelegate.chatPopover?.close()
+            // Ensure pizza panel stays visible
+            appDelegate.panel.orderFrontRegardless()
         }
     }
 }
