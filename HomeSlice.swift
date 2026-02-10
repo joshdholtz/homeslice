@@ -735,11 +735,12 @@ struct ChatInputBubble: View {
     @FocusState private var isFocused: Bool
 
     var body: some View {
-        HStack(spacing: 4) {
+        HStack(spacing: 8) {
             TextField("Ask me...", text: $pizzaState.chatMessage)
-                .textFieldStyle(.plain)
+                .textFieldStyle(.roundedBorder)
                 .font(.system(size: 12))
-                .frame(width: 120)
+                .foregroundColor(.black)
+                .frame(width: 140)
                 .focused($isFocused)
                 .onSubmit {
                     pizzaState.sendMessage()
@@ -747,17 +748,19 @@ struct ChatInputBubble: View {
 
             Button(action: { pizzaState.sendMessage() }) {
                 Image(systemName: "arrow.up.circle.fill")
+                    .font(.system(size: 18))
                     .foregroundColor(.blue)
             }
             .buttonStyle(.plain)
 
             Button(action: { pizzaState.showChatInput = false }) {
                 Image(systemName: "xmark.circle.fill")
+                    .font(.system(size: 16))
                     .foregroundColor(.gray)
             }
             .buttonStyle(.plain)
         }
-        .padding(8)
+        .padding(10)
         .background(
             RoundedRectangle(cornerRadius: 12)
                 .fill(.white)
