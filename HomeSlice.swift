@@ -74,8 +74,10 @@ class PizzaState: ObservableObject {
                   let app = notification.userInfo?[NSWorkspace.applicationUserInfoKey] as? NSRunningApplication,
                   let appName = app.localizedName else { return }
 
-            // Skip if same app
-            guard appName != self.currentApp else { return }
+            // Skip if same app or if it's HomeSlice itself
+            guard appName != self.currentApp, appName != "HomeSlice" else { return }
+
+            let previousApp = self.currentApp
 
             // Update current and add to history
             self.currentApp = appName
@@ -87,6 +89,10 @@ class PizzaState: ObservableObject {
             }
 
             print(">>> App changed to: \(appName)")
+
+            // Send activity update to bot
+            let timestamp = DateFormatter.localizedString(from: Date(), dateStyle: .none, timeStyle: .short)
+            GatewayClient.shared.sendActivityUpdate("[\(timestamp)] Switched from \(previousApp) to \(appName)")
         }
     }
 
@@ -319,6 +325,8 @@ class GatewayClient {
 
     // Session management
     private let pizzaSessionKey = "app:pizza:main"
+    private let activitySessionKey = "app:pizza:activity"
+    private var activitySessionInitialized = false
 
     func send(message: String, to url: String, token: String, completion: @escaping (String?) -> Void) {
         self.completion = completion
@@ -435,6 +443,12 @@ class GatewayClient {
             sendConnectRequest()
 
         case "chat":
+            // Only process events from our pizza sessions (not main web session)
+            let sessionKey = payload["sessionKey"] as? String ?? ""
+            guard sessionKey.hasPrefix("app:pizza:") || sessionKey.hasPrefix("agent:main:app:pizza:") else {
+                return
+            }
+
             // Extract assistant message content
             if let message = payload["message"] as? [String: Any],
                let role = message["role"] as? String, role == "assistant",
@@ -454,6 +468,12 @@ class GatewayClient {
             }
 
         case "agent":
+            // Only process events from our pizza sessions
+            let sessionKey = payload["sessionKey"] as? String ?? ""
+            guard sessionKey.hasPrefix("agent:main:app:pizza:") else {
+                return
+            }
+
             // Capture streaming text from assistant
             if let stream = payload["stream"] as? String, stream == "assistant",
                let data = payload["data"] as? [String: Any],
@@ -572,6 +592,37 @@ class GatewayClient {
             "idempotencyKey": UUID().uuidString
         ]
         sendRequest(id: "2", method: "chat.send", params: params)
+    }
+
+    func sendActivityUpdate(_ activity: String) {
+        guard isConnected else { return }
+
+        // Initialize activity session with instructions on first use
+        if !activitySessionInitialized {
+            activitySessionInitialized = true
+            let initMessage = """
+            You are an activity logger for a desktop companion app. Your job:
+            1. Silently log app switches the user makes
+            2. Track patterns (what apps they use, how often they switch)
+            3. When asked, summarize what they've been doing
+            4. Optionally nudge if they seem distracted (too many switches)
+            Keep responses under 2 sentences. Just acknowledge with "📝" for normal logs.
+            """
+            let initParams: [String: Any] = [
+                "sessionKey": activitySessionKey,
+                "message": initMessage,
+                "idempotencyKey": UUID().uuidString
+            ]
+            sendRequest(id: "activity-init", method: "chat.send", params: initParams)
+        }
+
+        // Send the activity update
+        let params: [String: Any] = [
+            "sessionKey": activitySessionKey,
+            "message": activity,
+            "idempotencyKey": UUID().uuidString
+        ]
+        sendRequest(id: "activity", method: "chat.send", params: params)
     }
 
     private func sendRequest(id: String, method: String, params: [String: Any]) {
