@@ -647,7 +647,14 @@ class GatewayClient {
     private func handleEvent(_ json: [String: Any]) {
         let event = json["event"] as? String ?? ""
         let payload = json["payload"] as? [String: Any] ?? [:]
-        print("Event: \(event)")
+        let sessionKey = payload["sessionKey"] as? String ?? ""
+
+        // Log all events with session info
+        if !sessionKey.isEmpty {
+            print("[Event] \(event) | session: \(sessionKey.prefix(50))")
+        } else {
+            print("[Event] \(event)")
+        }
 
         switch event {
         case "connect.challenge":
@@ -655,6 +662,12 @@ class GatewayClient {
             challengeNonce = payload["nonce"] as? String
             challengeTs = payload["ts"] as? Int64
             sendConnectRequest()
+
+        case "cron":
+            // Cron job event - log details to debug
+            let sessionKey = payload["sessionKey"] as? String ?? "none"
+            let action = payload["action"] as? String ?? "unknown"
+            print("[Cron] action=\(action) session=\(sessionKey)")
 
         case "chat":
             // Only handle notification sessions here (main session and Telegram alerts)
