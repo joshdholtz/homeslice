@@ -1945,52 +1945,53 @@ struct KawaiiCat: View {
     let isBlinking: Bool
     let mood: PizzaMood
 
-    // Soft gray cat colors (like a cute gray tabby)
-    let furColor = Color(red: 0.75, green: 0.75, blue: 0.78)
-    let furLight = Color(red: 0.88, green: 0.88, blue: 0.9)
-    let furDark = Color(red: 0.6, green: 0.6, blue: 0.65)
+    // Soft gray cat colors with contrast between parts
+    let headColor = Color(red: 0.72, green: 0.72, blue: 0.75)      // Medium gray - features visible
+    let bodyColor = Color(red: 0.62, green: 0.62, blue: 0.66)      // Darker - body
+    let tailColor = Color(red: 0.52, green: 0.52, blue: 0.56)      // Darkest - tail
+    let tummyColor = Color(red: 0.85, green: 0.85, blue: 0.88)     // Light tummy patch
+    let furDark = Color(red: 0.4, green: 0.4, blue: 0.45)          // For details/whiskers
     let earPink = Color(red: 1.0, green: 0.78, blue: 0.82)
     let noseColor = Color(red: 0.95, green: 0.7, blue: 0.75)
 
     var body: some View {
         ZStack {
-            // === TAIL - behind everything ===
-            // Simple curved tail on the side
+            // === TAIL - behind everything (darkest) ===
             Circle()
                 .trim(from: 0.5, to: 0.85)
-                .stroke(furColor, style: StrokeStyle(lineWidth: 10, lineCap: .round))
+                .stroke(tailColor, style: StrokeStyle(lineWidth: 10, lineCap: .round))
                 .frame(width: 45, height: 45)
                 .offset(x: 42, y: 35)
 
-            // === BODY - small bean/oval shape ===
+            // === BODY - small bean/oval shape (medium) ===
             Ellipse()
-                .fill(furColor)
+                .fill(bodyColor)
                 .frame(width: 55, height: 45)
                 .offset(y: 42)
 
             // Tummy - lighter patch
             Ellipse()
-                .fill(furLight)
+                .fill(tummyColor)
                 .frame(width: 35, height: 30)
                 .offset(y: 42)
 
             // === LITTLE PAWS - two tiny ovals at front ===
             HStack(spacing: 4) {
-                Ellipse().fill(furColor).frame(width: 16, height: 10)
-                Ellipse().fill(furColor).frame(width: 16, height: 10)
+                Ellipse().fill(bodyColor).frame(width: 16, height: 10)
+                Ellipse().fill(bodyColor).frame(width: 16, height: 10)
             }
             .offset(y: 62)
 
-            // === HEAD - big round circle (the kawaii way!) ===
+            // === HEAD - big round circle (lightest - the star!) ===
             Circle()
-                .fill(furColor)
+                .fill(headColor)
                 .frame(width: 80, height: 80)
                 .offset(y: -10)
 
             // === EARS - soft triangles on TOP of head ===
             // Left ear
             KawaiiCatEar()
-                .fill(furColor)
+                .fill(headColor)
                 .frame(width: 28, height: 32)
                 .rotationEffect(.degrees(-15))
                 .offset(x: -28, y: -45)
@@ -2003,7 +2004,7 @@ struct KawaiiCat: View {
 
             // Right ear
             KawaiiCatEar()
-                .fill(furColor)
+                .fill(headColor)
                 .frame(width: 28, height: 32)
                 .rotationEffect(.degrees(15))
                 .offset(x: 28, y: -45)
@@ -2085,19 +2086,41 @@ struct KawaiiCat: View {
                 .frame(width: 14, height: 14)
                 .offset(x: 25, y: 0)
 
-            // Simple whisker dots (3 on each side)
-            HStack(spacing: 3) {
-                Circle().fill(furDark).frame(width: 3, height: 3)
-                Circle().fill(furDark).frame(width: 3, height: 3)
-                Circle().fill(furDark).frame(width: 3, height: 3)
+            // Whiskers - 3 lines on each side
+            // Left whiskers
+            Group {
+                Rectangle()
+                    .fill(furDark)
+                    .frame(width: 20, height: 1.5)
+                    .rotationEffect(.degrees(-10))
+                    .offset(x: -32, y: 0)
+                Rectangle()
+                    .fill(furDark)
+                    .frame(width: 22, height: 1.5)
+                    .offset(x: -33, y: 6)
+                Rectangle()
+                    .fill(furDark)
+                    .frame(width: 20, height: 1.5)
+                    .rotationEffect(.degrees(10))
+                    .offset(x: -32, y: 12)
             }
-            .offset(x: -20, y: 5)
-            HStack(spacing: 3) {
-                Circle().fill(furDark).frame(width: 3, height: 3)
-                Circle().fill(furDark).frame(width: 3, height: 3)
-                Circle().fill(furDark).frame(width: 3, height: 3)
+            // Right whiskers
+            Group {
+                Rectangle()
+                    .fill(furDark)
+                    .frame(width: 20, height: 1.5)
+                    .rotationEffect(.degrees(10))
+                    .offset(x: 32, y: 0)
+                Rectangle()
+                    .fill(furDark)
+                    .frame(width: 22, height: 1.5)
+                    .offset(x: 33, y: 6)
+                Rectangle()
+                    .fill(furDark)
+                    .frame(width: 20, height: 1.5)
+                    .rotationEffect(.degrees(-10))
+                    .offset(x: 32, y: 12)
             }
-            .offset(x: 20, y: 5)
         }
         .frame(width: 120, height: 140)
     }
