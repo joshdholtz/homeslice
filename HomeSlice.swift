@@ -2,7 +2,6 @@ import AppKit
 import SwiftUI
 import Combine
 import CryptoKit
-import Security
 import Carbon.HIToolbox
 
 // MARK: - Pizza State
@@ -397,30 +396,32 @@ enum ParticleType {
     case stars
 }
 
-// MARK: - Device Identity (Ed25519 keypair in Keychain)
+// MARK: - Device Identity (Ed25519 keypair in UserDefaults)
 
 class DeviceIdentity {
     static let shared = DeviceIdentity()
 
-    private let privateKeyTag = "homeslice.device.privateKey"
+    private let privateKeyKey = "homeslice.device.privateKey"
     private var _privateKey: Curve25519.Signing.PrivateKey?
 
     var privateKey: Curve25519.Signing.PrivateKey {
         if let key = _privateKey { return key }
 
-        // Try to load from Keychain
-        if let keyData = loadFromKeychain(tag: privateKeyTag),
+        // Try to load from UserDefaults
+        if let base64 = UserDefaults.standard.string(forKey: privateKeyKey),
+           let keyData = Data(base64Encoded: base64),
            let key = try? Curve25519.Signing.PrivateKey(rawRepresentation: keyData) {
             _privateKey = key
-            print("Loaded existing keypair from Keychain")
+            print("Loaded existing keypair")
             return key
         }
 
         // Generate new key and store it
         let newKey = Curve25519.Signing.PrivateKey()
-        saveToKeychain(tag: privateKeyTag, data: newKey.rawRepresentation)
+        let base64 = newKey.rawRepresentation.base64EncodedString()
+        UserDefaults.standard.set(base64, forKey: privateKeyKey)
         _privateKey = newKey
-        print("Generated new keypair and saved to Keychain")
+        print("Generated new keypair")
         return newKey
     }
 
@@ -495,35 +496,9 @@ class DeviceIdentity {
         print("=======================")
     }
 
-    private func saveToKeychain(tag: String, data: Data) {
-        let query: [String: Any] = [
-            kSecClass as String: kSecClassGenericPassword,
-            kSecAttrAccount as String: tag,
-            kSecValueData as String: data
-        ]
-        SecItemDelete(query as CFDictionary)
-        let status = SecItemAdd(query as CFDictionary, nil)
-        print("Keychain save status: \(status == errSecSuccess ? "success" : "failed (\(status))")")
-    }
-
-    private func loadFromKeychain(tag: String) -> Data? {
-        let query: [String: Any] = [
-            kSecClass as String: kSecClassGenericPassword,
-            kSecAttrAccount as String: tag,
-            kSecReturnData as String: true
-        ]
-        var result: AnyObject?
-        let status = SecItemCopyMatching(query as CFDictionary, &result)
-        return status == errSecSuccess ? result as? Data : nil
-    }
-
     // Reset identity (for debugging - generates fresh keypair)
     func resetIdentity() {
-        let query: [String: Any] = [
-            kSecClass as String: kSecClassGenericPassword,
-            kSecAttrAccount as String: privateKeyTag
-        ]
-        SecItemDelete(query as CFDictionary)
+        UserDefaults.standard.removeObject(forKey: privateKeyKey)
         _privateKey = nil
         print("Identity reset - will generate new keypair on next access")
     }
