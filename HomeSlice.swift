@@ -69,13 +69,13 @@ class PizzaState: ObservableObject {
 
                 if let response = response {
                     let truncated = String(response.prefix(500))
-                    print(">>> Response received (len=\(truncated.count)), just hiding dots")
+                    print(">>> Response received (len=\(truncated.count))")
 
-                    // DEBUG: Just hide thinking, don't show response
+                    // DEBUG: showResponse=true but empty text
                     self.chatDisplay = ChatDisplayState(
                         isThinking: false,
-                        showResponse: false,
-                        botResponse: ""
+                        showResponse: true,
+                        botResponse: ""  // empty text
                     )
                     self.mood = .happy
 
@@ -1008,11 +1008,11 @@ struct KawaiiPizzaView: View {
                         .offset(x: 60, y: -60)
                 }
 
-                // Bot response bubble - DISABLED FOR DEBUGGING
-                // if pizzaState.chatDisplay.showResponse {
-                //     ResponseBubble(message: pizzaState.chatDisplay.botResponse)
-                //         .offset(x: 70, y: -70)
-                // }
+                // Bot response bubble
+                if pizzaState.chatDisplay.showResponse {
+                    ResponseBubble(message: pizzaState.chatDisplay.botResponse)
+                        .offset(x: 70, y: -70)
+                }
 
                 // Chat input
                 if pizzaState.showChatInput {
