@@ -42,8 +42,8 @@ class AppDelegate: NSObject, NSApplicationDelegate {
     }
 
     func setupPanel() {
-        // Create floating panel
-        let panelSize = NSSize(width: 200, height: 240)
+        // Create floating panel (large enough for speech bubbles and shadow)
+        let panelSize = NSSize(width: 300, height: 320)
         panel = NSPanel(
             contentRect: NSRect(
                 x: NSScreen.main!.frame.midX - panelSize.width / 2,
@@ -553,10 +553,10 @@ struct SpeechBubble: View {
 struct PizzaShadow: View {
     var body: some View {
         Ellipse()
-            .fill(Color.black.opacity(0.15))
-            .blur(radius: 10)
-            .frame(width: 80, height: 30)
-            .offset(y: 55)
+            .fill(Color.black.opacity(0.18))
+            .blur(radius: 12)
+            .frame(width: 90, height: 35)
+            .offset(y: 65)
     }
 }
 
