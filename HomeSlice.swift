@@ -33,8 +33,15 @@ class PizzaState: ObservableObject {
         }
     }
 
+    @Published var botToken: String {
+        didSet {
+            UserDefaults.standard.set(botToken, forKey: "botToken")
+        }
+    }
+
     init() {
         self.botURL = UserDefaults.standard.string(forKey: "botURL") ?? ""
+        self.botToken = UserDefaults.standard.string(forKey: "botToken") ?? ""
     }
 
     func sendMessage() {
@@ -46,7 +53,7 @@ class PizzaState: ObservableObject {
         isThinking = true
         mood = .excited
 
-        ChatService.shared.send(message: message, to: botURL) { [weak self] response in
+        ChatService.shared.send(message: message, to: botURL, token: botToken) { [weak self] response in
             DispatchQueue.main.async {
                 self?.isThinking = false
                 if let response = response {
@@ -85,8 +92,18 @@ enum ParticleType {
 class ChatService {
     static let shared = ChatService()
 
-    func send(message: String, to urlString: String, completion: @escaping (String?) -> Void) {
-        guard let url = URL(string: urlString) else {
+    func send(message: String, to urlString: String, token: String, completion: @escaping (String?) -> Void) {
+        // Ensure URL ends with /hooks/wake for OpenClaw
+        var finalURL = urlString
+        if !finalURL.hasSuffix("/hooks/wake") {
+            if finalURL.hasSuffix("/") {
+                finalURL += "hooks/wake"
+            } else {
+                finalURL += "/hooks/wake"
+            }
+        }
+
+        guard let url = URL(string: finalURL) else {
             completion(nil)
             return
         }
@@ -94,18 +111,23 @@ class ChatService {
         var request = URLRequest(url: url)
         request.httpMethod = "POST"
         request.setValue("application/json", forHTTPHeaderField: "Content-Type")
+        if !token.isEmpty {
+            request.setValue("Bearer \(token)", forHTTPHeaderField: "Authorization")
+        }
 
-        let body = ["message": message]
+        // OpenClaw format: {"text": "...", "mode": "now"}
+        let body: [String: Any] = ["text": message, "mode": "now"]
         request.httpBody = try? JSONSerialization.data(withJSONObject: body)
 
         URLSession.shared.dataTask(with: request) { data, response, error in
-            guard let data = data,
-                  let json = try? JSONSerialization.jsonObject(with: data) as? [String: Any],
-                  let reply = json["reply"] as? String else {
-                completion(nil)
-                return
+            if let httpResponse = response as? HTTPURLResponse {
+                if httpResponse.statusCode == 200 || httpResponse.statusCode == 202 {
+                    // OpenClaw accepted the message
+                    completion("Message sent!")
+                    return
+                }
             }
-            completion(reply)
+            completion(nil)
         }.resume()
     }
 }
@@ -303,18 +325,36 @@ class AppDelegate: NSObject, NSApplicationDelegate {
 
     @objc func configureBotURL() {
         let alert = NSAlert()
-        alert.messageText = "Configure Bot URL"
-        alert.informativeText = "Enter the URL for your bot (e.g., http://100.x.x.x:8080/chat)"
+        alert.messageText = "Configure OpenClaw"
+        alert.informativeText = "Enter your OpenClaw URL and webhook token:"
         alert.addButton(withTitle: "Save")
         alert.addButton(withTitle: "Cancel")
 
-        let input = NSTextField(frame: NSRect(x: 0, y: 0, width: 300, height: 24))
-        input.stringValue = pizzaState.botURL
-        input.placeholderString = "http://your-bot-url/chat"
-        alert.accessoryView = input
+        let container = NSView(frame: NSRect(x: 0, y: 0, width: 300, height: 60))
+
+        let urlLabel = NSTextField(labelWithString: "URL:")
+        urlLabel.frame = NSRect(x: 0, y: 35, width: 40, height: 20)
+        container.addSubview(urlLabel)
+
+        let urlInput = NSTextField(frame: NSRect(x: 45, y: 33, width: 255, height: 24))
+        urlInput.stringValue = pizzaState.botURL
+        urlInput.placeholderString = "https://your-machine.ts.net"
+        container.addSubview(urlInput)
+
+        let tokenLabel = NSTextField(labelWithString: "Token:")
+        tokenLabel.frame = NSRect(x: 0, y: 5, width: 40, height: 20)
+        container.addSubview(tokenLabel)
+
+        let tokenInput = NSSecureTextField(frame: NSRect(x: 45, y: 3, width: 255, height: 24))
+        tokenInput.stringValue = pizzaState.botToken
+        tokenInput.placeholderString = "your-webhook-token"
+        container.addSubview(tokenInput)
+
+        alert.accessoryView = container
 
         if alert.runModal() == .alertFirstButtonReturn {
-            pizzaState.botURL = input.stringValue
+            pizzaState.botURL = urlInput.stringValue
+            pizzaState.botToken = tokenInput.stringValue
         }
     }
 
