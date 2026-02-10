@@ -116,6 +116,7 @@ class AppDelegate: NSObject, NSApplicationDelegate {
     var panel: NSPanel!
     var statusItem: NSStatusItem!
     let pizzaState = PizzaState.shared
+    var chatObserver: AnyCancellable?
 
     func applicationDidFinishLaunching(_ notification: Notification) {
         // Hide from dock
@@ -123,6 +124,14 @@ class AppDelegate: NSObject, NSApplicationDelegate {
 
         setupPanel()
         setupMenuBar()
+
+        // Watch for chat input to activate panel for keyboard
+        chatObserver = pizzaState.$showChatInput.sink { [weak self] show in
+            if show {
+                self?.panel.makeKey()
+                NSApp.activate(ignoringOtherApps: true)
+            }
+        }
     }
 
     func setupPanel() {
