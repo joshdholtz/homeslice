@@ -137,11 +137,12 @@ class PizzaState: ObservableObject {
         request.setValue("Bearer \(botToken)", forHTTPHeaderField: "Authorization")
         request.setValue("application/json", forHTTPHeaderField: "Content-Type")
 
+        // Poll main session for alerts (messages starting with ✔️)
         let body: [String: Any] = [
             "tool": "sessions_history",
             "args": [
-                "sessionKey": "agent:main:telegram:group:-1003723640588",
-                "limit": 5,
+                "sessionKey": "agent:main:main",
+                "limit": 20,
                 "includeTools": false
             ]
         ]
@@ -180,6 +181,9 @@ class PizzaState: ObservableObject {
                 }
 
                 guard !text.isEmpty else { continue }
+
+                // Only show messages starting with ✔️ (alerts)
+                guard text.hasPrefix("✔️") else { continue }
 
                 // Create hash from timestamp + text for deduplication
                 let hash = "\(timestamp):\(text.hashValue)"
@@ -294,11 +298,11 @@ class PizzaState: ObservableObject {
         request.setValue("Bearer \(botToken)", forHTTPHeaderField: "Authorization")
         request.setValue("application/json", forHTTPHeaderField: "Content-Type")
 
-        // Fetch from Telegram alerts session for reminders
+        // Fetch from main session for alerts (messages starting with ✔️)
         let body: [String: Any] = [
             "tool": "sessions_history",
             "args": [
-                "sessionKey": "agent:main:telegram:group:-1003723640588",
+                "sessionKey": "agent:main:main",
                 "limit": 200,
                 "includeTools": false
             ]
@@ -365,6 +369,9 @@ class PizzaState: ObservableObject {
                     }
 
                     guard !text.isEmpty else { continue }
+
+                    // Only show messages starting with ✔️ (alerts)
+                    guard text.hasPrefix("✔️") else { continue }
 
                     // Parse timestamp if available (could be createdAt string or timestamp int)
                     var timestamp = Date()
@@ -843,13 +850,12 @@ class GatewayClient {
             sendConnectRequest()
 
         case "chat":
-            // Handle notification sessions: Telegram alerts group is the alerts inbox
+            // Handle main session for alerts (messages starting with ✔️)
             // Pizza sessions are handled in "agent" case to avoid duplicate responses
             let sessionKey = payload["sessionKey"] as? String ?? ""
-            let isTelegramAlerts = sessionKey == "agent:main:telegram:group:-1003723640588"
-            let isMainSession = sessionKey.hasPrefix("session:main:") || sessionKey.hasPrefix("agent:main:session:main:")
+            let isMainSession = sessionKey == "agent:main:main"
 
-            guard isTelegramAlerts || isMainSession else {
+            guard isMainSession else {
                 return
             }
 
@@ -860,8 +866,8 @@ class GatewayClient {
                 for block in content {
                     if let type = block["type"] as? String, type == "text",
                        let text = block["text"] as? String {
-                        // Capture all Telegram alerts, or bells from main session
-                        if isTelegramAlerts || text.hasPrefix("🔔") {
+                        // Only capture messages starting with ✔️
+                        if text.hasPrefix("✔️") {
                             responseBuffer = text
                             print("[Alerts] captured: \(text.prefix(50))...")
                         }
@@ -878,14 +884,12 @@ class GatewayClient {
             }
 
         case "agent":
-            // Process pizza sessions OR Telegram alerts (the alerts inbox)
+            // Process pizza sessions OR main session alerts (messages starting with ✔️)
             let sessionKey = payload["sessionKey"] as? String ?? ""
             let isPizzaSession = sessionKey.hasPrefix("agent:main:app:pizza:")
-            let isTelegramAlerts = sessionKey == "agent:main:telegram:group:-1003723640588"
-            let isMainSession = sessionKey.hasPrefix("agent:main:session:main:")
-            let isNotificationSession = isTelegramAlerts || isMainSession
+            let isMainSession = sessionKey == "agent:main:main"
 
-            guard isPizzaSession || isNotificationSession else {
+            guard isPizzaSession || isMainSession else {
                 return
             }
 
@@ -893,27 +897,25 @@ class GatewayClient {
             if let stream = payload["stream"] as? String, stream == "assistant",
                let data = payload["data"] as? [String: Any],
                let text = data["text"] as? String {
-                // Capture telegram/pizza messages, or bells from main session
-                if isTelegramAlerts || !isNotificationSession {
+                // For pizza sessions, capture all; for main session, only ✔️ alerts
+                if isPizzaSession {
                     responseBuffer = text
-                    if isTelegramAlerts {
-                        print("[Alerts agent] captured: \(text.prefix(50))...")
-                    }
-                } else if text.hasPrefix("🔔") {
+                } else if isMainSession && text.hasPrefix("✔️") {
                     responseBuffer = text
+                    print("[Alerts agent] captured: \(text.prefix(50))...")
                 }
             }
 
             // Check for run completion
             if let data = payload["data"] as? [String: Any],
                let phase = data["phase"] as? String, phase == "end" {
-                if isNotificationSession {
-                    if !responseBuffer.isEmpty {
+                if isMainSession {
+                    if !responseBuffer.isEmpty && responseBuffer.hasPrefix("✔️") {
                         print("[Alerts agent] delivering: \(responseBuffer.prefix(50))...")
                         showActivityNudge(responseBuffer)
                         responseBuffer = ""
                     }
-                } else {
+                } else if isPizzaSession {
                     finishWithResponse()
                 }
             }
