@@ -2390,7 +2390,13 @@ struct ResponseBubble: View {
 
     // Parse markdown to AttributedString
     private var markdownContent: AttributedString {
-        (try? AttributedString(markdown: message, options: AttributedString.MarkdownParsingOptions(interpretedSyntax: .inlineOnlyPreservingWhitespace))) ?? AttributedString(message)
+        do {
+            var options = AttributedString.MarkdownParsingOptions()
+            options.interpretedSyntax = .full
+            return try AttributedString(markdown: message, options: options)
+        } catch {
+            return AttributedString(message)
+        }
     }
 
     var body: some View {
