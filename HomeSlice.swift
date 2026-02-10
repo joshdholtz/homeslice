@@ -94,18 +94,7 @@ enum ParticleType {
 class DeviceIdentity {
     static let shared = DeviceIdentity()
 
-    private let deviceIdKey = "homeslice.device.id"
     private let privateKeyTag = "homeslice.device.privateKey"
-
-    var deviceId: String {
-        if let stored = UserDefaults.standard.string(forKey: deviceIdKey) {
-            return stored
-        }
-        let newId = UUID().uuidString.lowercased()
-        UserDefaults.standard.set(newId, forKey: deviceIdKey)
-        return newId
-    }
-
     private var _privateKey: Curve25519.Signing.PrivateKey?
 
     var privateKey: Curve25519.Signing.PrivateKey {
@@ -115,14 +104,23 @@ class DeviceIdentity {
         if let keyData = loadFromKeychain(tag: privateKeyTag),
            let key = try? Curve25519.Signing.PrivateKey(rawRepresentation: keyData) {
             _privateKey = key
+            print("Loaded existing keypair from Keychain")
             return key
         }
 
-        // Generate new key
+        // Generate new key and store it
         let newKey = Curve25519.Signing.PrivateKey()
         saveToKeychain(tag: privateKeyTag, data: newKey.rawRepresentation)
         _privateKey = newKey
+        print("Generated new keypair and saved to Keychain")
         return newKey
+    }
+
+    // Device ID is SHA256 hash of public key (base64 encoded)
+    var deviceId: String {
+        let pubKeyData = Data(privateKey.publicKey.rawRepresentation)
+        let hash = SHA256.hash(data: pubKeyData)
+        return Data(hash).base64EncodedString()
     }
 
     var publicKeyBase64: String {
@@ -130,9 +128,27 @@ class DeviceIdentity {
     }
 
     func sign(nonce: String) -> String {
-        guard let nonceData = nonce.data(using: .utf8) else { return "" }
-        guard let signature = try? privateKey.signature(for: nonceData) else { return "" }
-        return Data(signature).base64EncodedString()
+        guard let nonceData = nonce.data(using: .utf8) else {
+            print("Failed to encode nonce as UTF-8")
+            return ""
+        }
+        guard let signature = try? privateKey.signature(for: nonceData) else {
+            print("Failed to sign nonce")
+            return ""
+        }
+        let sig = Data(signature).base64EncodedString()
+
+        // Verify signature locally before returning
+        let isValid = privateKey.publicKey.isValidSignature(signature, for: nonceData)
+        print("Signature verification: \(isValid ? "VALID" : "INVALID")")
+
+        return sig
+    }
+
+    // Debug: print identity info
+    func printDebugInfo() {
+        print("Device ID: \(deviceId)")
+        print("Public Key: \(publicKeyBase64)")
     }
 
     private func saveToKeychain(tag: String, data: Data) {
@@ -142,7 +158,8 @@ class DeviceIdentity {
             kSecValueData as String: data
         ]
         SecItemDelete(query as CFDictionary)
-        SecItemAdd(query as CFDictionary, nil)
+        let status = SecItemAdd(query as CFDictionary, nil)
+        print("Keychain save status: \(status == errSecSuccess ? "success" : "failed (\(status))")")
     }
 
     private func loadFromKeychain(tag: String) -> Data? {
@@ -154,6 +171,17 @@ class DeviceIdentity {
         var result: AnyObject?
         let status = SecItemCopyMatching(query as CFDictionary, &result)
         return status == errSecSuccess ? result as? Data : nil
+    }
+
+    // Reset identity (for debugging - generates fresh keypair)
+    func resetIdentity() {
+        let query: [String: Any] = [
+            kSecClass as String: kSecClassGenericPassword,
+            kSecAttrAccount as String: privateKeyTag
+        ]
+        SecItemDelete(query as CFDictionary)
+        _privateKey = nil
+        print("Identity reset - will generate new keypair on next access")
     }
 }
 
@@ -359,7 +387,10 @@ class GatewayClient {
         }
 
         let device = DeviceIdentity.shared
+        device.printDebugInfo()
+        print("Signing nonce: \(nonce)")
         let signature = device.sign(nonce: nonce)
+        print("Signature: \(signature.prefix(20))...")
 
         var params: [String: Any] = [
             "minProtocol": 3,
