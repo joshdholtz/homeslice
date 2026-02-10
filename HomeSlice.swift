@@ -116,6 +116,7 @@ class AppDelegate: NSObject, NSApplicationDelegate {
     var panel: NSPanel!
     var statusItem: NSStatusItem!
     let pizzaState = PizzaState.shared
+    var chatPopover: NSPopover?
 
     func applicationDidFinishLaunching(_ notification: Notification) {
         // Hide from dock
@@ -280,22 +281,23 @@ class AppDelegate: NSObject, NSApplicationDelegate {
     }
 
     @objc func showChat() {
-        let alert = NSAlert()
-        alert.messageText = "Chat with Bot"
-        alert.informativeText = "Type your message:"
-        alert.addButton(withTitle: "Send")
-        alert.addButton(withTitle: "Cancel")
+        if chatPopover == nil {
+            chatPopover = NSPopover()
+            chatPopover?.contentSize = NSSize(width: 250, height: 50)
+            chatPopover?.behavior = .transient
+            chatPopover?.animates = true
+            chatPopover?.contentViewController = ChatPopoverController(pizzaState: pizzaState)
+        }
 
-        let input = NSTextField(frame: NSRect(x: 0, y: 0, width: 300, height: 24))
-        input.placeholderString = "Ask me anything..."
-        alert.accessoryView = input
-
-        // Make sure input is focused
-        alert.window.initialFirstResponder = input
-
-        if alert.runModal() == .alertFirstButtonReturn && !input.stringValue.isEmpty {
-            pizzaState.chatMessage = input.stringValue
-            pizzaState.sendMessage()
+        if let popover = chatPopover {
+            if popover.isShown {
+                popover.close()
+            } else {
+                // Show relative to the panel center
+                let panelBounds = panel.contentView!.bounds
+                let rect = NSRect(x: panelBounds.midX - 10, y: panelBounds.midY, width: 20, height: 20)
+                popover.show(relativeTo: rect, of: panel.contentView!, preferredEdge: .maxY)
+            }
         }
     }
 
@@ -363,6 +365,62 @@ class AppDelegate: NSObject, NSApplicationDelegate {
 
     func applicationShouldTerminateAfterLastWindowClosed(_ sender: NSApplication) -> Bool {
         return false
+    }
+}
+
+// MARK: - Chat Popover Controller
+
+class ChatPopoverController: NSViewController {
+    let pizzaState: PizzaState
+    var textField: NSTextField!
+
+    init(pizzaState: PizzaState) {
+        self.pizzaState = pizzaState
+        super.init(nibName: nil, bundle: nil)
+    }
+
+    required init?(coder: NSCoder) {
+        fatalError("init(coder:) not implemented")
+    }
+
+    override func loadView() {
+        let container = NSView(frame: NSRect(x: 0, y: 0, width: 250, height: 50))
+
+        textField = NSTextField(frame: NSRect(x: 10, y: 12, width: 190, height: 26))
+        textField.placeholderString = "Ask me anything..."
+        textField.bezelStyle = .roundedBezel
+        textField.font = .systemFont(ofSize: 13)
+        textField.target = self
+        textField.action = #selector(sendMessage)
+        container.addSubview(textField)
+
+        let sendButton = NSButton(frame: NSRect(x: 205, y: 12, width: 35, height: 26))
+        sendButton.title = "→"
+        sendButton.bezelStyle = .rounded
+        sendButton.target = self
+        sendButton.action = #selector(sendMessage)
+        container.addSubview(sendButton)
+
+        self.view = container
+    }
+
+    override func viewDidAppear() {
+        super.viewDidAppear()
+        view.window?.makeFirstResponder(textField)
+    }
+
+    @objc func sendMessage() {
+        let message = textField.stringValue
+        guard !message.isEmpty else { return }
+
+        pizzaState.chatMessage = message
+        textField.stringValue = ""
+        pizzaState.sendMessage()
+
+        // Close popover after sending
+        if let popover = (NSApp.delegate as? AppDelegate)?.chatPopover {
+            popover.close()
+        }
     }
 }
 
