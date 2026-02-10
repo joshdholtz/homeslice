@@ -554,9 +554,9 @@ struct PizzaShadow: View {
     var body: some View {
         Ellipse()
             .fill(Color.black.opacity(0.18))
-            .blur(radius: 12)
-            .frame(width: 90, height: 35)
-            .offset(y: 65)
+            .blur(radius: 10)
+            .frame(width: 85, height: 30)
+            .offset(y: 58)
     }
 }
 
