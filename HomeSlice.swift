@@ -191,21 +191,25 @@ class GatewayClient {
 
     private func connect() {
         // Convert https:// to wss://
-        var wsURL = gatewayURL
+        var wsURL = gatewayURL.trimmingCharacters(in: CharacterSet(charactersIn: "/"))
         if wsURL.hasPrefix("https://") {
-            wsURL = "wss://" + wsURL.dropFirst(8)
+            wsURL = "wss://" + String(wsURL.dropFirst(8))
         } else if wsURL.hasPrefix("http://") {
-            wsURL = "ws://" + wsURL.dropFirst(7)
+            wsURL = "ws://" + String(wsURL.dropFirst(7))
         } else if !wsURL.hasPrefix("wss://") && !wsURL.hasPrefix("ws://") {
             wsURL = "wss://" + wsURL
         }
 
+        print("Connecting to WebSocket: \(wsURL)")
+
         guard let url = URL(string: wsURL) else {
+            print("Invalid WebSocket URL: \(wsURL)")
             completion?(nil)
             return
         }
 
-        session = URLSession(configuration: .default)
+        let config = URLSessionConfiguration.default
+        session = URLSession(configuration: config)
         webSocket = session?.webSocketTask(with: url)
         webSocket?.resume()
         receiveMessage()
@@ -228,9 +232,9 @@ class GatewayClient {
                 self?.receiveMessage()
 
             case .failure(let error):
-                print("WebSocket error: \(error)")
+                print("WebSocket receive error: \(error.localizedDescription)")
                 self?.isConnected = false
-                self?.completion?(nil)
+                // Don't call completion here - might just be a disconnect after success
             }
         }
     }
