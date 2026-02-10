@@ -2388,22 +2388,60 @@ struct ResponseBubble: View {
     let message: String
     var onLeft: Bool = false
 
+    // Parse markdown to AttributedString
+    private var markdownContent: AttributedString {
+        (try? AttributedString(markdown: message, options: AttributedString.MarkdownParsingOptions(interpretedSyntax: .inlineOnlyPreservingWhitespace))) ?? AttributedString(message)
+    }
+
     var body: some View {
-        VStack(alignment: .leading, spacing: 0) {
-            // Header with close button
-            HStack {
-                // Queue badge if there are more messages
-                if pizzaState.pendingMessageCount > 0 {
-                    Text("+\(pizzaState.pendingMessageCount)")
-                        .font(.caption2.bold())
-                        .foregroundColor(.white)
-                        .padding(.horizontal, 6)
-                        .padding(.vertical, 2)
-                        .background(Capsule().fill(Color.blue))
+        HStack(alignment: .top, spacing: 0) {
+            // Main content area
+            VStack(alignment: .leading, spacing: 8) {
+                // Scrollable message content with markdown
+                ScrollView {
+                    Text(markdownContent)
+                        .font(.system(size: 14))
+                        .foregroundColor(.black)
+                        .multilineTextAlignment(.leading)
+                        .fixedSize(horizontal: false, vertical: true)
+                        .frame(maxWidth: .infinity, alignment: .leading)
                 }
+                .frame(maxHeight: 160)
 
-                Spacer()
+                // Footer with actions
+                HStack(spacing: 12) {
+                    Button(action: {
+                        pizzaState.dismissResponse()
+                        NotificationCenter.default.post(name: .showChatDialog, object: nil)
+                    }) {
+                        HStack(spacing: 4) {
+                            Image(systemName: "clock.arrow.circlepath")
+                                .font(.system(size: 11))
+                            Text("History")
+                                .font(.caption2)
+                        }
+                        .foregroundColor(.blue)
+                    }
+                    .buttonStyle(.plain)
 
+                    Spacer()
+
+                    if pizzaState.pendingMessageCount > 0 {
+                        Button(action: {
+                            pizzaState.dismissAllResponses()
+                        }) {
+                            Text("Dismiss all")
+                                .font(.caption2)
+                                .foregroundColor(.secondary)
+                        }
+                        .buttonStyle(.plain)
+                    }
+                }
+            }
+            .padding(12)
+
+            // Right gutter with badge and close button
+            VStack(spacing: 8) {
                 // Close button
                 Button(action: {
                     pizzaState.dismissResponse()
@@ -2414,53 +2452,22 @@ struct ResponseBubble: View {
                 }
                 .buttonStyle(.plain)
                 .help("Dismiss (shows next if queued)")
-            }
-            .padding(.bottom, 6)
 
-            // Message content
-            ScrollView {
-                Text(message)
-                    .font(.system(size: 14))
-                    .foregroundColor(.black)
-                    .multilineTextAlignment(.leading)
-                    .fixedSize(horizontal: false, vertical: true)
-                    .frame(maxWidth: .infinity, alignment: .leading)
-            }
-
-            // Footer with actions
-            HStack(spacing: 12) {
-                // Open history button
-                Button(action: {
-                    pizzaState.dismissResponse()
-                    NotificationCenter.default.post(name: .showChatDialog, object: nil)
-                }) {
-                    HStack(spacing: 4) {
-                        Image(systemName: "clock.arrow.circlepath")
-                            .font(.system(size: 11))
-                        Text("History")
-                            .font(.caption2)
-                    }
-                    .foregroundColor(.blue)
+                // Queue badge
+                if pizzaState.pendingMessageCount > 0 {
+                    Text("+\(pizzaState.pendingMessageCount)")
+                        .font(.caption2.bold())
+                        .foregroundColor(.white)
+                        .padding(.horizontal, 6)
+                        .padding(.vertical, 2)
+                        .background(Capsule().fill(Color.blue))
                 }
-                .buttonStyle(.plain)
 
                 Spacer()
-
-                // Dismiss all if queue has messages
-                if pizzaState.pendingMessageCount > 0 {
-                    Button(action: {
-                        pizzaState.dismissAllResponses()
-                    }) {
-                        Text("Dismiss all")
-                            .font(.caption2)
-                            .foregroundColor(.secondary)
-                    }
-                    .buttonStyle(.plain)
-                }
             }
-            .padding(.top, 8)
+            .padding(.top, 10)
+            .padding(.trailing, 8)
         }
-        .padding(12)
         .frame(width: 280)
         .frame(maxHeight: 220)
         .fixedSize(horizontal: false, vertical: true)
