@@ -68,18 +68,16 @@ class PizzaState: ObservableObject {
                 guard let self = self else { return }
 
                 if let response = response {
-                    // Aggressive sanitization - ASCII only, no special chars
-                    let allowed = CharacterSet.alphanumerics.union(CharacterSet(charactersIn: " .,!?'-"))
-                    let sanitized = String(response
-                        .unicodeScalars
-                        .filter { allowed.contains($0) }
-                        .prefix(100))
-                    print(">>> Sanitized response (len=\(sanitized.count)): \(sanitized.prefix(50))...")
+                    // Force UTF8 encoding
+                    let utf8Data = response.data(using: .utf8) ?? Data()
+                    let utf8String = String(data: utf8Data, encoding: .utf8) ?? "Got it!"
+                    let truncated = String(utf8String.prefix(150))
+                    print(">>> UTF8 response (len=\(truncated.count)): \(truncated.prefix(50))...")
 
                     self.chatDisplay = ChatDisplayState(
                         isThinking: false,
                         showResponse: true,
-                        botResponse: sanitized.isEmpty ? "Got it!" : sanitized
+                        botResponse: truncated
                     )
                     self.mood = .happy
 
