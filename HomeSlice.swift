@@ -245,12 +245,14 @@ struct KawaiiPizzaView: View {
                         .transition(.scale.combined(with: .opacity))
                 }
             }
+            .drawingGroup() // Render as bitmap to prevent white flash during rotation
             .rotationEffect(.degrees(wiggleAngle + spinAngle))
             .offset(x: danceOffset, y: bobOffset + jumpOffset)
             .shadow(color: .black.opacity(0.3), radius: 8, x: 0, y: 4)
             .onTapGesture {
                 handleTap()
             }
+            .background(Color.clear)
             .contextMenu {
                 Button("Happy") { pizzaState.mood = .happy }
                 Button("Excited") { pizzaState.mood = .excited }
