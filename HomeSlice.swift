@@ -256,18 +256,30 @@ class PizzaState: ObservableObject {
             var messages: [[String: Any]] = []
             if let msgs = json["messages"] as? [[String: Any]] {
                 messages = msgs
+                print(">>> Found messages at top level")
             } else if let result = json["result"] as? [String: Any] {
+                print(">>> Has result, keys: \(result.keys)")
                 // Check if result.content[0].text contains JSON string
-                if let content = result["content"] as? [[String: Any]],
-                   let firstBlock = content.first,
-                   let textString = firstBlock["text"] as? String,
-                   let textData = textString.data(using: .utf8),
-                   let innerJson = try? JSONSerialization.jsonObject(with: textData) as? [String: Any],
-                   let msgs = innerJson["messages"] as? [[String: Any]] {
-                    messages = msgs
-                    print(">>> Parsed messages from result.content[0].text")
+                if let content = result["content"] as? [[String: Any]] {
+                    print(">>> result.content has \(content.count) blocks")
+                    if let firstBlock = content.first {
+                        print(">>> First block keys: \(firstBlock.keys)")
+                        if let textString = firstBlock["text"] as? String {
+                            print(">>> text string length: \(textString.count)")
+                            print(">>> text preview: \(textString.prefix(500))")
+                            if let textData = textString.data(using: .utf8),
+                               let innerJson = try? JSONSerialization.jsonObject(with: textData) as? [String: Any] {
+                                print(">>> Parsed inner JSON, keys: \(innerJson.keys)")
+                                if let msgs = innerJson["messages"] as? [[String: Any]] {
+                                    messages = msgs
+                                    print(">>> Parsed \(msgs.count) messages from result.content[0].text")
+                                }
+                            }
+                        }
+                    }
                 } else if let msgs = result["messages"] as? [[String: Any]] {
                     messages = msgs
+                    print(">>> Found messages in result.messages")
                 }
             }
 
@@ -283,13 +295,19 @@ class PizzaState: ObservableObject {
 
                 var loadedMessages: [ChatMessage] = []
 
-                for msg in messages {
-                    guard let role = msg["role"] as? String,
-                          role == "user" || role == "assistant" else { continue }
+                for (i, msg) in messages.enumerated() {
+                    let role = msg["role"] as? String ?? "unknown"
+                    print(">>> Message \(i): role=\(role)")
+
+                    guard role == "user" || role == "assistant" else {
+                        print(">>> Skipping non-user/assistant role")
+                        continue
+                    }
 
                     // Extract text content
                     var text = ""
                     if let content = msg["content"] as? [[String: Any]] {
+                        print(">>> Content is array with \(content.count) blocks")
                         for block in content {
                             if let type = block["type"] as? String, type == "text",
                                let blockText = block["text"] as? String {
@@ -298,9 +316,16 @@ class PizzaState: ObservableObject {
                         }
                     } else if let content = msg["content"] as? String {
                         text = content
+                        print(">>> Content is string")
+                    } else {
+                        print(">>> Content type unknown: \(type(of: msg["content"]))")
                     }
 
-                    guard !text.isEmpty else { continue }
+                    print(">>> Extracted text length: \(text.count)")
+                    guard !text.isEmpty else {
+                        print(">>> Skipping empty text")
+                        continue
+                    }
 
                     // Parse timestamp if available
                     var timestamp = Date()
