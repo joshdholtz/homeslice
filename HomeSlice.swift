@@ -229,7 +229,7 @@ struct KawaiiPizzaView: View {
             }
 
             ZStack {
-                // Pizza body (in drawingGroup to prevent white flash)
+                // Pizza body
                 ZStack {
                     PizzaSlice()
                         .scaleEffect(breatheScale)
@@ -238,7 +238,6 @@ struct KawaiiPizzaView: View {
                         .offset(y: 15)
                         .scaleEffect(breatheScale)
                 }
-                .drawingGroup()
                 .rotationEffect(.degrees(wiggleAngle + spinAngle))
 
                 // Speech bubble outside drawingGroup so it doesn't clip
