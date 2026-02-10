@@ -269,11 +269,9 @@ class GatewayClient {
     private var gatewayURL: String = ""
     private var gatewayToken: String = ""
     private var requestId = 0
-    private var responseDelivered = false  // Stop processing after response
 
     // Session management
     private let pizzaSessionKey = "app:pizza:main"
-    private var sessionInitialized = false
 
     func send(message: String, to url: String, token: String, completion: @escaping (String?) -> Void) {
         self.completion = completion
@@ -281,7 +279,6 @@ class GatewayClient {
         self.gatewayURL = url
         self.gatewayToken = token
         self.responseBuffer = ""
-        self.responseDelivered = false  // Reset for new request
 
         if isConnected {
             sendChatMessage(message)
@@ -333,12 +330,6 @@ class GatewayClient {
             DispatchQueue.main.async {
                 guard let self = self else { return }
 
-                // Stop processing if we've already delivered a response
-                if self.responseDelivered {
-                    print(">>> Ignoring message, response already delivered")
-                    return
-                }
-
                 switch result {
                 case .success(let message):
                     switch message {
@@ -351,14 +342,11 @@ class GatewayClient {
                     @unknown default:
                         break
                     }
-                    self.receiveMessage()
+                    self.receiveMessage()  // Keep listening
 
                 case .failure(let error):
                     print("WebSocket receive error: \(error.localizedDescription)")
                     self.isConnected = false
-                    if self.currentRunId == nil && !self.responseDelivered {
-                        self.completion?(nil)
-                    }
                 }
             }
         }
@@ -400,13 +388,6 @@ class GatewayClient {
             sendConnectRequest()
 
         case "chat":
-            // Only process if we have a currentRunId (actual user message, not init)
-            let runId = payload["runId"] as? String
-            guard currentRunId != nil, runId == currentRunId else {
-                print(">>> Ignoring chat event for runId: \(runId ?? "nil") (waiting for: \(currentRunId ?? "nil"))")
-                return
-            }
-
             // Extract assistant message content
             if let message = payload["message"] as? [String: Any],
                let role = message["role"] as? String, role == "assistant",
@@ -426,9 +407,17 @@ class GatewayClient {
             }
 
         case "agent":
+            // Capture streaming text from assistant
+            if let stream = payload["stream"] as? String, stream == "assistant",
+               let data = payload["data"] as? [String: Any],
+               let text = data["text"] as? String {
+                responseBuffer = text  // text is accumulated, not delta
+            }
+
             // Check for run completion
-            if let status = payload["status"] as? String,
-               (status == "completed" || status == "done") {
+            if let data = payload["data"] as? [String: Any],
+               let phase = data["phase"] as? String, phase == "end" {
+                print(">>> Agent ended, delivering response")
                 finishWithResponse()
             }
 
@@ -454,18 +443,6 @@ class GatewayClient {
                 let error = payload["error"] as? String ?? "Connection failed"
                 print("Connect failed: \(error)")
                 completion?(nil)
-            }
-        } else if id == "init" {
-            // Session initialization response - ignore the response content
-            if ok {
-                print(">>> Session initialized with concise mode")
-                // Clear any buffered response from init
-                responseBuffer = ""
-                // Now send the actual pending message
-                if let msg = pendingMessage {
-                    pendingMessage = nil
-                    sendChatMessage(msg)
-                }
             }
         } else if id == "2" {
             // chat.send response
@@ -538,23 +515,12 @@ class GatewayClient {
     }
 
     private func sendChatMessage(_ message: String) {
-        // If session not initialized, send concise mode instruction first
-        if !sessionInitialized {
-            sessionInitialized = true
-            let initParams: [String: Any] = [
-                "sessionKey": pizzaSessionKey,
-                "message": "CONCISE MODE: Answer in 1–3 sentences unless I ask for detail. No preamble. The user is interacting via a small desktop pizza companion app.",
-                "idempotencyKey": UUID().uuidString
-            ]
-            sendRequest(id: "init", method: "chat.send", params: initParams)
-            // Store the actual message to send after init completes
-            pendingMessage = message
-            return
-        }
+        // Prefix each message with concise mode (simpler than session init)
+        let prefixedMessage = "[CONCISE: 1-3 sentences max] \(message)"
 
         let params: [String: Any] = [
             "sessionKey": pizzaSessionKey,
-            "message": message,
+            "message": prefixedMessage,
             "idempotencyKey": UUID().uuidString
         ]
         sendRequest(id: "2", method: "chat.send", params: params)
@@ -586,16 +552,13 @@ class GatewayClient {
     }
 
     private func finishWithResponse() {
-        guard let completion = self.completion, !responseDelivered else { return }
+        guard let completion = self.completion else { return }
 
-        responseDelivered = true  // Stop processing more events
-        self.completion = nil  // Prevent double-calling
+        let response = responseBuffer.isEmpty ? "" : responseBuffer
+        guard !response.isEmpty else { return }  // Don't deliver empty responses
 
-        let response = responseBuffer.isEmpty ? "Done!" : responseBuffer
         responseBuffer = ""
-        currentRunId = nil
-
-        print(">>> Delivering response, stopping event processing")
+        print(">>> Delivering response: \(response.prefix(50))...")
         completion(response)  // Already on main thread
     }
 
