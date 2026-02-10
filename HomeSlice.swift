@@ -68,18 +68,18 @@ class PizzaState: ObservableObject {
                 guard let self = self else { return }
 
                 if let response = response {
-                    // Sanitize response: replace newlines, limit length
-                    var sanitized = response
-                        .replacingOccurrences(of: "\n", with: " ")
-                        .replacingOccurrences(of: "\r", with: "")
-                        .replacingOccurrences(of: "\t", with: " ")
-                    sanitized = String(sanitized.prefix(200))
+                    // Aggressive sanitization - ASCII only, no special chars
+                    let allowed = CharacterSet.alphanumerics.union(CharacterSet(charactersIn: " .,!?'-"))
+                    let sanitized = String(response
+                        .unicodeScalars
+                        .filter { allowed.contains($0) }
+                        .prefix(100))
                     print(">>> Sanitized response (len=\(sanitized.count)): \(sanitized.prefix(50))...")
 
                     self.chatDisplay = ChatDisplayState(
                         isThinking: false,
                         showResponse: true,
-                        botResponse: sanitized
+                        botResponse: sanitized.isEmpty ? "Got it!" : sanitized
                     )
                     self.mood = .happy
 
