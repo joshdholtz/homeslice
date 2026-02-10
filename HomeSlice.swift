@@ -82,6 +82,9 @@ class PizzaState: ObservableObject {
         }
     }
 
+    private var pollTimer: Timer?
+    private var lastMessageTimestamp: Int64 = 0
+
     init() {
         self.botURL = UserDefaults.standard.string(forKey: "botURL") ?? ""
         self.botToken = UserDefaults.standard.string(forKey: "botToken") ?? ""
@@ -89,26 +92,111 @@ class PizzaState: ObservableObject {
 
         // Connect to gateway and fetch history after identity is initialized
         DispatchQueue.main.asyncAfter(deadline: .now() + 2) { [weak self] in
-            guard let self = self else {
-                print("[Startup] self was nil")
-                return
-            }
-            print("[Startup] Checking identity... initialized=\(DeviceIdentity.shared.isInitialized)")
+            guard let self = self else { return }
             guard DeviceIdentity.shared.isInitialized else {
                 print("[Startup] Waiting for device identity...")
                 return
             }
-            print("[Startup] botURL=\(self.botURL.prefix(30))... botToken=\(self.botToken.isEmpty ? "empty" : "set")")
             guard !self.botURL.isEmpty, !self.botToken.isEmpty else {
                 print("[Startup] No bot URL/token configured")
                 return
             }
-            // Connect to gateway for live alerts
-            print("[Startup] Calling connectForAlerts...")
+            // Connect to gateway for pizza chat
             GatewayClient.shared.connectForAlerts(url: self.botURL, token: self.botToken)
-            // Fetch history
+            // Fetch initial history
             self.fetchHistory()
+            // Start polling for new alerts every 10 seconds
+            self.startPolling()
         }
+    }
+
+    private func startPolling() {
+        pollTimer?.invalidate()
+        pollTimer = Timer.scheduledTimer(withTimeInterval: 10, repeats: true) { [weak self] _ in
+            self?.pollForNewAlerts()
+        }
+        print("[Polling] Started polling for alerts every 10s")
+    }
+
+    private func pollForNewAlerts() {
+        guard !botURL.isEmpty, !botToken.isEmpty else { return }
+
+        var httpURL = botURL
+            .replacingOccurrences(of: "wss://", with: "https://")
+            .replacingOccurrences(of: "ws://", with: "http://")
+        if httpURL.hasSuffix("/gateway") {
+            httpURL = String(httpURL.dropLast("/gateway".count))
+        }
+        httpURL += "/tools/invoke"
+
+        guard let url = URL(string: httpURL) else { return }
+
+        var request = URLRequest(url: url)
+        request.httpMethod = "POST"
+        request.setValue("Bearer \(botToken)", forHTTPHeaderField: "Authorization")
+        request.setValue("application/json", forHTTPHeaderField: "Content-Type")
+
+        let body: [String: Any] = [
+            "tool": "sessions_history",
+            "args": [
+                "sessionKey": "agent:main:telegram:group:-1003723640588",
+                "limit": 5,
+                "includeTools": false
+            ]
+        ]
+
+        guard let bodyData = try? JSONSerialization.data(withJSONObject: body) else { return }
+        request.httpBody = bodyData
+
+        URLSession.shared.dataTask(with: request) { [weak self] data, response, error in
+            guard let self = self, let data = data, error == nil else { return }
+
+            guard let json = try? JSONSerialization.jsonObject(with: data) as? [String: Any],
+                  let result = json["result"] as? [String: Any],
+                  let content = result["content"] as? [[String: Any]],
+                  let firstBlock = content.first,
+                  let textString = firstBlock["text"] as? String,
+                  let textData = textString.data(using: .utf8),
+                  let innerJson = try? JSONSerialization.jsonObject(with: textData) as? [String: Any],
+                  let messages = innerJson["messages"] as? [[String: Any]] else { return }
+
+            // Check for new messages (timestamp > lastMessageTimestamp)
+            for msg in messages.reversed() {
+                guard let timestamp = msg["timestamp"] as? Int64,
+                      timestamp > self.lastMessageTimestamp else { continue }
+
+                let role = msg["role"] as? String ?? ""
+                guard role == "assistant" else { continue }
+
+                var text = ""
+                if let contentBlocks = msg["content"] as? [[String: Any]] {
+                    for block in contentBlocks {
+                        if let type = block["type"] as? String, type == "text",
+                           let blockText = block["text"] as? String {
+                            text += blockText
+                        }
+                    }
+                }
+
+                guard !text.isEmpty else { continue }
+
+                DispatchQueue.main.async {
+                    self.lastMessageTimestamp = timestamp
+                    print("[Polling] New alert: \(text.prefix(50))...")
+                    // Add to history and show notification
+                    self.addToHistory(role: "assistant", content: text)
+                    // Show as notification
+                    var bubbleOnLeft = false
+                    if let appDelegate = NSApp.delegate as? AppDelegate,
+                       let screen = NSScreen.main {
+                        let panelX = appDelegate.panel.frame.midX
+                        bubbleOnLeft = panelX > screen.frame.midX
+                    }
+                    self.showOrQueueMessage(text, bubbleOnLeft: bubbleOnLeft)
+                    self.mood = .surprised
+                }
+            }
+        }.resume()
     }
 
     private func setupAppMonitoring() {
@@ -274,6 +362,10 @@ class PizzaState: ObservableObject {
 
                 if !loadedMessages.isEmpty {
                     self.chatHistory = loadedMessages
+                    // Track latest timestamp for polling
+                    if let lastTs = messages.last?["timestamp"] as? Int64 {
+                        self.lastMessageTimestamp = lastTs
+                    }
                     print("[History] Loaded \(loadedMessages.count) messages into chat")
                 } else {
                     print("[History] No valid messages to display")
