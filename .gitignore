@@ -1,0 +1,10 @@
+# Compiled executable
+HomeSlice
+
+# macOS
+.DS_Store
+
+# Xcode
+*.xcodeproj/
+*.xcworkspace/
+xcuserdata/
