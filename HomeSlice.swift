@@ -2086,13 +2086,13 @@ struct KawaiiCat: View {
                 .frame(width: 14, height: 14)
                 .offset(x: 25, y: 0)
 
-            // Whiskers - 3 lines on each side
+            // Whiskers - 3 lines on each side (fanning outward)
             // Left whiskers
             Group {
                 Rectangle()
                     .fill(furDark)
                     .frame(width: 20, height: 1.5)
-                    .rotationEffect(.degrees(-10))
+                    .rotationEffect(.degrees(15))
                     .offset(x: -32, y: 0)
                 Rectangle()
                     .fill(furDark)
@@ -2101,7 +2101,7 @@ struct KawaiiCat: View {
                 Rectangle()
                     .fill(furDark)
                     .frame(width: 20, height: 1.5)
-                    .rotationEffect(.degrees(10))
+                    .rotationEffect(.degrees(-15))
                     .offset(x: -32, y: 12)
             }
             // Right whiskers
@@ -2109,7 +2109,7 @@ struct KawaiiCat: View {
                 Rectangle()
                     .fill(furDark)
                     .frame(width: 20, height: 1.5)
-                    .rotationEffect(.degrees(10))
+                    .rotationEffect(.degrees(-15))
                     .offset(x: 32, y: 0)
                 Rectangle()
                     .fill(furDark)
@@ -2118,7 +2118,7 @@ struct KawaiiCat: View {
                 Rectangle()
                     .fill(furDark)
                     .frame(width: 20, height: 1.5)
-                    .rotationEffect(.degrees(-10))
+                    .rotationEffect(.degrees(15))
                     .offset(x: 32, y: 12)
             }
         }
