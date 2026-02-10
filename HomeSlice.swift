@@ -84,6 +84,7 @@ class PizzaState: ObservableObject {
 
     private var pollTimer: Timer?
     private var lastMessageTimestamp: Int64 = 0
+    private var seenMessageHashes: Set<String> = []
 
     init() {
         self.botURL = UserDefaults.standard.string(forKey: "botURL") ?? ""
@@ -160,11 +161,11 @@ class PizzaState: ObservableObject {
                   let innerJson = try? JSONSerialization.jsonObject(with: textData) as? [String: Any],
                   let messages = innerJson["messages"] as? [[String: Any]] else { return }
 
-            // Check for new messages (timestamp > lastMessageTimestamp)
-            for msg in messages.reversed() {
-                guard let timestamp = msg["timestamp"] as? Int64,
-                      timestamp > self.lastMessageTimestamp else { continue }
+            // Check for new messages using timestamp + content hash for deduplication
+            var newMessages: [(timestamp: Int64, text: String, hash: String)] = []
 
+            for msg in messages {
+                let timestamp = msg["timestamp"] as? Int64 ?? 0
                 let role = msg["role"] as? String ?? ""
                 guard role == "assistant" else { continue }
 
@@ -180,19 +181,39 @@ class PizzaState: ObservableObject {
 
                 guard !text.isEmpty else { continue }
 
+                // Create hash from timestamp + text for deduplication
+                let hash = "\(timestamp):\(text.hashValue)"
+
+                // Skip if already seen
+                if self.seenMessageHashes.contains(hash) { continue }
+
+                // Skip if older than last known timestamp
+                if timestamp <= self.lastMessageTimestamp { continue }
+
+                newMessages.append((timestamp: timestamp, text: text, hash: hash))
+            }
+
+            // Sort by timestamp and process
+            for msg in newMessages.sorted(by: { $0.timestamp < $1.timestamp }) {
                 DispatchQueue.main.async {
-                    self.lastMessageTimestamp = timestamp
-                    print("[Polling] New alert: \(text.prefix(50))...")
-                    // Add to history and show notification
-                    self.addToHistory(role: "assistant", content: text)
-                    // Show as notification
+                    // Double-check we haven't seen this
+                    guard !self.seenMessageHashes.contains(msg.hash) else { return }
+                    self.seenMessageHashes.insert(msg.hash)
+                    self.lastMessageTimestamp = max(self.lastMessageTimestamp, msg.timestamp)
+
+                    print("[Polling] New alert: \(msg.text.prefix(50))...")
+
+                    // Add to history
+                    self.addToHistory(role: "assistant", content: msg.text)
+
+                    // Show notification
                     var bubbleOnLeft = false
                     if let appDelegate = NSApp.delegate as? AppDelegate,
                        let screen = NSScreen.main {
                         let panelX = appDelegate.panel.frame.midX
                         bubbleOnLeft = panelX > screen.frame.midX
                     }
-                    self.showOrQueueMessage(text, bubbleOnLeft: bubbleOnLeft)
+                    self.showOrQueueMessage(msg.text, bubbleOnLeft: bubbleOnLeft)
                     self.mood = .surprised
                 }
             }
@@ -362,11 +383,26 @@ class PizzaState: ObservableObject {
 
                 if !loadedMessages.isEmpty {
                     self.chatHistory = loadedMessages
-                    // Track latest timestamp for polling
-                    if let lastTs = messages.last?["timestamp"] as? Int64 {
-                        self.lastMessageTimestamp = lastTs
+                    // Track timestamps and hashes for polling deduplication
+                    for msg in messages {
+                        if let ts = msg["timestamp"] as? Int64 {
+                            self.lastMessageTimestamp = max(self.lastMessageTimestamp, ts)
+                            // Build hash from content
+                            var text = ""
+                            if let contentBlocks = msg["content"] as? [[String: Any]] {
+                                for block in contentBlocks {
+                                    if let type = block["type"] as? String, type == "text",
+                                       let blockText = block["text"] as? String {
+                                        text += blockText
+                                    }
+                                }
+                            }
+                            if !text.isEmpty {
+                                self.seenMessageHashes.insert("\(ts):\(text.hashValue)")
+                            }
+                        }
                     }
-                    print("[History] Loaded \(loadedMessages.count) messages into chat")
+                    print("[History] Loaded \(loadedMessages.count) messages, tracking \(self.seenMessageHashes.count) hashes")
                 } else {
                     print("[History] No valid messages to display")
                 }
