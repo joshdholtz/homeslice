@@ -228,46 +228,45 @@ struct KawaiiPizzaView: View {
                     }
             }
 
-            VStack {
-                ZStack {
-                    // Main pizza slice
-                    PizzaSlice()
-                        .scaleEffect(breatheScale)
+            ZStack {
+                // Main pizza slice
+                PizzaSlice()
+                    .scaleEffect(breatheScale)
 
-                    // Kawaii face
-                    KawaiiFace(isBlinking: isBlinking, mood: pizzaState.mood)
-                        .offset(y: 15)
-                        .scaleEffect(breatheScale)
-                }
-                .rotationEffect(.degrees(wiggleAngle + spinAngle))
-                .offset(x: danceOffset, y: bobOffset + jumpOffset)
-                .shadow(color: .black.opacity(0.3), radius: 8, x: 0, y: 4)
-                .onTapGesture {
-                    handleTap()
-                }
-                .contextMenu {
-                    Button("Happy") { pizzaState.mood = .happy }
-                    Button("Excited") { pizzaState.mood = .excited }
-                    Button("Sleepy") { pizzaState.mood = .sleepy }
-                    Button("Love") { pizzaState.mood = .love }
-                    Button("Surprised") { pizzaState.mood = .surprised }
-                    Divider()
-                    Button("Spin!") { performSpin() }
-                    Button("Jump!") { performJump() }
-                    Button("Dance!") { performDance() }
-                    Divider()
-                    Button("Burst Hearts") {
-                        pizzaState.particleType = .hearts
-                        pizzaState.showParticles = true
-                    }
-                    Button("Quit") { NSApp.terminate(nil) }
-                }
+                // Kawaii face
+                KawaiiFace(isBlinking: isBlinking, mood: pizzaState.mood)
+                    .offset(y: 15)
+                    .scaleEffect(breatheScale)
 
-                // Speech bubble for mood
+                // Speech bubble for mood (overlaid, not in VStack)
                 if pizzaState.mood != .happy {
                     SpeechBubble(mood: pizzaState.mood)
+                        .offset(y: -85)
                         .transition(.scale.combined(with: .opacity))
                 }
+            }
+            .rotationEffect(.degrees(wiggleAngle + spinAngle))
+            .offset(x: danceOffset, y: bobOffset + jumpOffset)
+            .shadow(color: .black.opacity(0.3), radius: 8, x: 0, y: 4)
+            .onTapGesture {
+                handleTap()
+            }
+            .contextMenu {
+                Button("Happy") { pizzaState.mood = .happy }
+                Button("Excited") { pizzaState.mood = .excited }
+                Button("Sleepy") { pizzaState.mood = .sleepy }
+                Button("Love") { pizzaState.mood = .love }
+                Button("Surprised") { pizzaState.mood = .surprised }
+                Divider()
+                Button("Spin!") { performSpin() }
+                Button("Jump!") { performJump() }
+                Button("Dance!") { performDance() }
+                Divider()
+                Button("Burst Hearts") {
+                    pizzaState.particleType = .hearts
+                    pizzaState.showParticles = true
+                }
+                Button("Quit") { NSApp.terminate(nil) }
             }
         }
         .animation(.spring(response: 0.3), value: pizzaState.mood)
