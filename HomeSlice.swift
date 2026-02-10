@@ -843,7 +843,7 @@ class GatewayClient {
         let clientId = "cli"
         let clientMode = "cli"
         let role = "operator"
-        let scopes = ["operator.read", "operator.write"]
+        let scopes = ["operator.read", "operator.write", "operator.admin"]
         let signedAt = ts  // Use challenge timestamp
 
         // Sign the full attestation string (v2 format)
