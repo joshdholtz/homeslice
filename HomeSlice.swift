@@ -364,16 +364,20 @@ class GatewayClient {
 
         case "chat":
             // Extract assistant message content
-            if let messages = payload["messages"] as? [[String: Any]] {
-                for msg in messages {
-                    if let role = msg["role"] as? String, role == "assistant",
-                       let content = msg["content"] as? String {
-                        responseBuffer = content
+            if let message = payload["message"] as? [String: Any],
+               let role = message["role"] as? String, role == "assistant",
+               let content = message["content"] as? [[String: Any]] {
+                // Content is an array of content blocks
+                for block in content {
+                    if let type = block["type"] as? String, type == "text",
+                       let text = block["text"] as? String {
+                        responseBuffer = text
                     }
                 }
             }
-            // Check for completion
-            if let status = payload["status"] as? String, status == "completed" {
+            // Check for completion (state: "final")
+            if let state = payload["state"] as? String, state == "final" {
+                print("Chat completed with response: \(responseBuffer.prefix(50))...")
                 finishWithResponse()
             }
 
