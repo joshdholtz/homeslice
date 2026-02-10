@@ -116,7 +116,6 @@ class AppDelegate: NSObject, NSApplicationDelegate {
     var panel: NSPanel!
     var statusItem: NSStatusItem!
     let pizzaState = PizzaState.shared
-    var chatObserver: AnyCancellable?
 
     func applicationDidFinishLaunching(_ notification: Notification) {
         // Hide from dock
@@ -126,12 +125,9 @@ class AppDelegate: NSObject, NSApplicationDelegate {
         setupMenuBar()
         setupMainMenu()
 
-        // Watch for chat input to activate panel for keyboard
-        chatObserver = pizzaState.$showChatInput.sink { [weak self] show in
-            if show {
-                self?.panel.makeKey()
-                NSApp.activate(ignoringOtherApps: true)
-            }
+        // Watch for chat dialog trigger
+        NotificationCenter.default.addObserver(forName: .showChatDialog, object: nil, queue: .main) { [weak self] _ in
+            self?.showChat()
         }
     }
 
@@ -284,7 +280,23 @@ class AppDelegate: NSObject, NSApplicationDelegate {
     }
 
     @objc func showChat() {
-        pizzaState.showChatInput = true
+        let alert = NSAlert()
+        alert.messageText = "Chat with Bot"
+        alert.informativeText = "Type your message:"
+        alert.addButton(withTitle: "Send")
+        alert.addButton(withTitle: "Cancel")
+
+        let input = NSTextField(frame: NSRect(x: 0, y: 0, width: 300, height: 24))
+        input.placeholderString = "Ask me anything..."
+        alert.accessoryView = input
+
+        // Make sure input is focused
+        alert.window.initialFirstResponder = input
+
+        if alert.runModal() == .alertFirstButtonReturn && !input.stringValue.isEmpty {
+            pizzaState.chatMessage = input.stringValue
+            pizzaState.sendMessage()
+        }
     }
 
     @objc func configureBotURL() {
@@ -360,6 +372,7 @@ extension Notification.Name {
     static let doSpin = Notification.Name("doSpin")
     static let doJump = Notification.Name("doJump")
     static let doDance = Notification.Name("doDance")
+    static let showChatDialog = Notification.Name("showChatDialog")
 }
 
 // MARK: - Kawaii Pizza View
@@ -438,7 +451,8 @@ struct KawaiiPizzaView: View {
                 if pizzaState.botURL.isEmpty {
                     handleTap()
                 } else {
-                    pizzaState.showChatInput.toggle()
+                    // Use menu bar chat which pops up a dialog
+                    NotificationCenter.default.post(name: .showChatDialog, object: nil)
                 }
             }
             .contextMenu {
