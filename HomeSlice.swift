@@ -49,7 +49,10 @@ class PizzaState: ObservableObject {
     @Published var showChatInput: Bool = false
     @Published var chatMessage: String = ""
     @Published var chatDisplay: ChatDisplayState = ChatDisplayState()
-    @Published var isHoveringResponse: Bool = false  // Prevents auto-dismiss when hovering
+
+    // Message queue - messages wait until user dismisses current one
+    @Published var pendingMessages: [String] = []
+    @Published var pendingMessageCount: Int = 0  // Shows badge on bubble
 
     // Chat UI preferences
     var showExpandedChat: Bool {
@@ -184,58 +187,68 @@ class PizzaState: ObservableObject {
                         bubbleOnLeft = panelX > screen.frame.midX
                     }
 
-                    self.chatDisplay = ChatDisplayState(
-                        isThinking: false,
-                        showResponse: true,
-                        botResponse: utf8String,
-                        bubbleOnLeft: bubbleOnLeft
-                    )
+                    // Show message or queue it if one is already showing
+                    self.showOrQueueMessage(utf8String, bubbleOnLeft: bubbleOnLeft)
                     self.mood = .happy
-
-                    // Hide response after delay (unless hovering)
-                    self.scheduleResponseHide(delay: 10)
                 } else {
-                    // Single atomic update for error
-                    self.chatDisplay = ChatDisplayState(
-                        isThinking: false,
-                        showResponse: true,
-                        botResponse: "Couldn't reach bot!"
-                    )
+                    // Show error message
+                    self.showOrQueueMessage("Couldn't reach bot!", bubbleOnLeft: false)
                     self.mood = .surprised
-
-                    self.scheduleResponseHide(delay: 3)
                 }
             }
         }
     }
 
-    private var responseHideTask: DispatchWorkItem?
-
-    func scheduleResponseHide(delay: Double) {
-        // Cancel any existing hide task
-        responseHideTask?.cancel()
-
-        let task = DispatchWorkItem { [weak self] in
-            guard let self = self else { return }
-
-            // Don't hide if user is hovering over the bubble
-            if self.isHoveringResponse {
-                // Reschedule for later
-                self.scheduleResponseHide(delay: 2)
-                return
-            }
-
-            print(">>> Hiding response after timeout")
-            self.chatDisplay = ChatDisplayState(isThinking: false, showResponse: false, botResponse: "")
-            self.mood = .happy
+    // Show message immediately or add to queue
+    func showOrQueueMessage(_ message: String, bubbleOnLeft: Bool) {
+        if chatDisplay.showResponse {
+            // Already showing a message, queue this one
+            pendingMessages.append(message)
+            pendingMessageCount = pendingMessages.count
+            print(">>> Queued message, \(pendingMessages.count) pending")
+        } else {
+            // Show immediately
+            chatDisplay = ChatDisplayState(
+                isThinking: false,
+                showResponse: true,
+                botResponse: message,
+                bubbleOnLeft: bubbleOnLeft
+            )
         }
-
-        responseHideTask = task
-        DispatchQueue.main.asyncAfter(deadline: .now() + delay, execute: task)
     }
 
+    // User dismisses current message - show next if queued
     func dismissResponse() {
-        responseHideTask?.cancel()
+        if let nextMessage = pendingMessages.first {
+            pendingMessages.removeFirst()
+            pendingMessageCount = pendingMessages.count
+
+            // Determine bubble position
+            var bubbleOnLeft = false
+            if let appDelegate = NSApp.delegate as? AppDelegate,
+               let screen = NSScreen.main {
+                let panelX = appDelegate.panel.frame.midX
+                bubbleOnLeft = panelX > screen.frame.midX
+            }
+
+            chatDisplay = ChatDisplayState(
+                isThinking: false,
+                showResponse: true,
+                botResponse: nextMessage,
+                bubbleOnLeft: bubbleOnLeft
+            )
+            print(">>> Showing next queued message, \(pendingMessages.count) remaining")
+        } else {
+            // No more messages
+            chatDisplay = ChatDisplayState(isThinking: false, showResponse: false, botResponse: "")
+            pendingMessageCount = 0
+        }
+    }
+
+    // Dismiss all messages
+    func dismissAllResponses() {
+        pendingMessages.removeAll()
+        pendingMessageCount = 0
         chatDisplay = ChatDisplayState(isThinking: false, showResponse: false, botResponse: "")
     }
 }
@@ -2088,10 +2101,37 @@ struct ResponseBubble: View {
     @EnvironmentObject var pizzaState: PizzaState
     let message: String
     var onLeft: Bool = false
-    @State private var isHovering = false
 
     var body: some View {
-        VStack(alignment: .leading, spacing: 8) {
+        VStack(alignment: .leading, spacing: 0) {
+            // Header with close button
+            HStack {
+                // Queue badge if there are more messages
+                if pizzaState.pendingMessageCount > 0 {
+                    Text("+\(pizzaState.pendingMessageCount)")
+                        .font(.caption2.bold())
+                        .foregroundColor(.white)
+                        .padding(.horizontal, 6)
+                        .padding(.vertical, 2)
+                        .background(Capsule().fill(Color.blue))
+                }
+
+                Spacer()
+
+                // Close button
+                Button(action: {
+                    pizzaState.dismissResponse()
+                }) {
+                    Image(systemName: "xmark.circle.fill")
+                        .font(.system(size: 18))
+                        .foregroundColor(.gray.opacity(0.6))
+                }
+                .buttonStyle(.plain)
+                .help("Dismiss (shows next if queued)")
+            }
+            .padding(.bottom, 6)
+
+            // Message content
             ScrollView {
                 Text(message)
                     .font(.system(size: 14))
@@ -2101,31 +2141,48 @@ struct ResponseBubble: View {
                     .frame(maxWidth: .infinity, alignment: .leading)
             }
 
-            // Tap hint
-            HStack {
+            // Footer with actions
+            HStack(spacing: 12) {
+                // Open history button
+                Button(action: {
+                    pizzaState.dismissResponse()
+                    NotificationCenter.default.post(name: .showChatDialog, object: nil)
+                }) {
+                    HStack(spacing: 4) {
+                        Image(systemName: "clock.arrow.circlepath")
+                            .font(.system(size: 11))
+                        Text("History")
+                            .font(.caption2)
+                    }
+                    .foregroundColor(.blue)
+                }
+                .buttonStyle(.plain)
+
                 Spacer()
-                Text("tap for history")
-                    .font(.caption2)
-                    .foregroundColor(.secondary)
+
+                // Dismiss all if queue has messages
+                if pizzaState.pendingMessageCount > 0 {
+                    Button(action: {
+                        pizzaState.dismissAllResponses()
+                    }) {
+                        Text("Dismiss all")
+                            .font(.caption2)
+                            .foregroundColor(.secondary)
+                    }
+                    .buttonStyle(.plain)
+                }
             }
+            .padding(.top, 8)
         }
         .padding(12)
         .frame(width: 280)
-        .frame(maxHeight: 200)
+        .frame(maxHeight: 220)
         .fixedSize(horizontal: false, vertical: true)
         .background(
             RoundedRectangle(cornerRadius: 12)
                 .fill(Color.white)
                 .shadow(color: .black.opacity(0.25), radius: 4)
         )
-        .onHover { hovering in
-            isHovering = hovering
-            pizzaState.isHoveringResponse = hovering
-        }
-        .onTapGesture {
-            pizzaState.dismissResponse()
-            NotificationCenter.default.post(name: .showChatDialog, object: nil)
-        }
     }
 }
 
