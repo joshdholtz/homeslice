@@ -249,7 +249,7 @@ struct KawaiiPizzaView: View {
                 }
             }
             .offset(x: danceOffset, y: bobOffset + jumpOffset)
-            .shadow(color: .black.opacity(0.3), radius: 8, x: 0, y: 4)
+            .shadow(color: .black.opacity(0.15), radius: 12, x: 0, y: 8)
             .onTapGesture {
                 handleTap()
             }
