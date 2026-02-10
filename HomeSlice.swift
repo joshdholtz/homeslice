@@ -34,6 +34,11 @@ class PizzaState: ObservableObject {
     @Published var chatMessage: String = ""
     @Published var chatDisplay: ChatDisplayState = ChatDisplayState()
 
+    // Active app tracking
+    @Published var currentApp: String = ""
+    var recentApps: [(app: String, timestamp: Date)] = []
+    private let maxRecentApps = 20
+
     // Bot configuration (stored in UserDefaults)
     @Published var botURL: String {
         didSet {
@@ -50,6 +55,48 @@ class PizzaState: ObservableObject {
     init() {
         self.botURL = UserDefaults.standard.string(forKey: "botURL") ?? ""
         self.botToken = UserDefaults.standard.string(forKey: "botToken") ?? ""
+        setupAppMonitoring()
+    }
+
+    private func setupAppMonitoring() {
+        // Get initial app
+        if let app = NSWorkspace.shared.frontmostApplication?.localizedName {
+            currentApp = app
+        }
+
+        // Monitor app changes
+        NSWorkspace.shared.notificationCenter.addObserver(
+            forName: NSWorkspace.didActivateApplicationNotification,
+            object: nil,
+            queue: .main
+        ) { [weak self] notification in
+            guard let self = self,
+                  let app = notification.userInfo?[NSWorkspace.applicationUserInfoKey] as? NSRunningApplication,
+                  let appName = app.localizedName else { return }
+
+            // Skip if same app
+            guard appName != self.currentApp else { return }
+
+            // Update current and add to history
+            self.currentApp = appName
+            self.recentApps.append((app: appName, timestamp: Date()))
+
+            // Keep only recent entries
+            if self.recentApps.count > self.maxRecentApps {
+                self.recentApps.removeFirst()
+            }
+
+            print(">>> App changed to: \(appName)")
+        }
+    }
+
+    func getAppContext() -> String {
+        var context = "Current app: \(currentApp)"
+        if recentApps.count > 1 {
+            let recent = recentApps.suffix(5).map { $0.app }.joined(separator: " → ")
+            context += "\nRecent: \(recent)"
+        }
+        return context
     }
 
     func sendMessage() {
@@ -515,8 +562,9 @@ class GatewayClient {
     }
 
     private func sendChatMessage(_ message: String) {
-        // Prefix each message with concise mode (simpler than session init)
-        let prefixedMessage = "[CONCISE: 1-3 sentences max] \(message)"
+        // Include app context and concise mode
+        let appContext = PizzaState.shared.getAppContext()
+        let prefixedMessage = "[CONCISE: 1-3 sentences max]\n[\(appContext)]\n\(message)"
 
         let params: [String: Any] = [
             "sessionKey": pizzaSessionKey,
