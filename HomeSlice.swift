@@ -685,6 +685,11 @@ class GatewayClient {
             let isTelegramAlerts = sessionKey.contains("telegram:group:-1003723640588")
             let isNotificationSession = isMainSession || isTelegramAlerts
 
+            // Debug: log Telegram chat events
+            if isTelegramAlerts {
+                print("[Telegram chat] state=\(payload["state"] ?? "nil")")
+            }
+
             guard isNotificationSession else {
                 return
             }
@@ -699,6 +704,7 @@ class GatewayClient {
                         // For Telegram, capture all messages; for main session, only bells
                         if isTelegramAlerts || text.hasPrefix("🔔") {
                             responseBuffer = text
+                            print("[Telegram chat] captured: \(text.prefix(50))...")
                         }
                     }
                 }
@@ -706,7 +712,7 @@ class GatewayClient {
             // Check for completion (state: "final")
             if let state = payload["state"] as? String, state == "final" {
                 if !responseBuffer.isEmpty {
-                    print("Notification: \(responseBuffer.prefix(50))...")
+                    print("[Telegram chat] delivering: \(responseBuffer.prefix(50))...")
                     showActivityNudge(responseBuffer)
                     responseBuffer = ""
                 }
@@ -720,6 +726,13 @@ class GatewayClient {
             let isTelegramAlerts = sessionKey.contains("telegram:group:-1003723640588")
             let isNotificationSession = isMainSession || isTelegramAlerts
 
+            // Debug: log Telegram agent events
+            if isTelegramAlerts {
+                let stream = payload["stream"] as? String ?? "nil"
+                let phase = (payload["data"] as? [String: Any])?["phase"] as? String ?? "nil"
+                print("[Telegram agent] stream=\(stream) phase=\(phase)")
+            }
+
             guard isPizzaSession || isNotificationSession else {
                 return
             }
@@ -731,6 +744,9 @@ class GatewayClient {
                 // For Telegram, capture all messages; for main session, only bells; for pizza, all
                 if isTelegramAlerts || !isNotificationSession {
                     responseBuffer = text
+                    if isTelegramAlerts {
+                        print("[Telegram agent] captured: \(text.prefix(50))...")
+                    }
                 } else if text.hasPrefix("🔔") {
                     responseBuffer = text
                 }
@@ -739,10 +755,13 @@ class GatewayClient {
             // Check for run completion
             if let data = payload["data"] as? [String: Any],
                let phase = data["phase"] as? String, phase == "end" {
-                print(">>> Agent ended, delivering response")
+                print("[Agent] ended, delivering response")
 
                 if isNotificationSession {
                     if !responseBuffer.isEmpty {
+                        if isTelegramAlerts {
+                            print("[Telegram agent] delivering: \(responseBuffer.prefix(50))...")
+                        }
                         showActivityNudge(responseBuffer)
                         responseBuffer = ""
                     }
