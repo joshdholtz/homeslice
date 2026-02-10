@@ -126,6 +126,14 @@ class PizzaState: ObservableObject {
     }
 
     func addToHistory(role: String, content: String) {
+        // Skip if this is a duplicate of the last message
+        if let last = chatHistory.last,
+           last.role == role,
+           last.content == content {
+            print(">>> Skipping duplicate message")
+            return
+        }
+
         let message = ChatMessage(role: role, content: content, timestamp: Date())
         chatHistory.append(message)
         if chatHistory.count > maxHistoryMessages {
@@ -177,18 +185,37 @@ class PizzaState: ObservableObject {
                 return
             }
 
+            // Debug: print raw response
+            if let responseStr = String(data: data, encoding: .utf8) {
+                print(">>> History raw response: \(responseStr.prefix(1000))")
+            }
+
             // Parse response
             guard let json = try? JSONSerialization.jsonObject(with: data) as? [String: Any] else {
-                print(">>> Failed to parse history response")
+                print(">>> Failed to parse history response as JSON")
                 return
             }
 
-            // Extract messages from response
-            // Response format: { "messages": [ { "role": "user"/"assistant", "content": [...] } ] }
-            guard let messages = json["messages"] as? [[String: Any]] else {
-                print(">>> No messages in history response: \(json)")
+            print(">>> History JSON keys: \(json.keys)")
+
+            // Extract messages from response - try different possible structures
+            var messages: [[String: Any]] = []
+            if let msgs = json["messages"] as? [[String: Any]] {
+                messages = msgs
+            } else if let result = json["result"] as? [String: Any],
+                      let msgs = result["messages"] as? [[String: Any]] {
+                messages = msgs
+            } else if let content = json["content"] as? [[String: Any]] {
+                // Maybe the response is the content directly
+                messages = content
+            }
+
+            if messages.isEmpty {
+                print(">>> No messages found in response structure")
                 return
             }
+
+            print(">>> Found \(messages.count) messages in history")
 
             DispatchQueue.main.async {
                 guard let self = self else { return }
@@ -627,12 +654,14 @@ class GatewayClient {
             sendConnectRequest()
 
         case "chat":
-            // Process pizza sessions OR main session (for bell notifications)
+            // Process pizza sessions OR notification sessions (main, telegram alerts)
             let sessionKey = payload["sessionKey"] as? String ?? ""
             let isPizzaSession = sessionKey.hasPrefix("app:pizza:") || sessionKey.hasPrefix("agent:main:app:pizza:")
             let isMainSession = sessionKey.hasPrefix("session:main:") || sessionKey.hasPrefix("agent:main:session:main:")
+            let isTelegramAlerts = sessionKey.contains("telegram:group:-1003723640588")
+            let isNotificationSession = isMainSession || isTelegramAlerts
 
-            guard isPizzaSession || isMainSession else {
+            guard isPizzaSession || isNotificationSession else {
                 return
             }
 
@@ -644,8 +673,8 @@ class GatewayClient {
                 for block in content {
                     if let type = block["type"] as? String, type == "text",
                        let text = block["text"] as? String {
-                        // For main session, only capture if starts with bell
-                        if isMainSession {
+                        // For notification sessions, only capture if starts with bell
+                        if isNotificationSession {
                             if text.hasPrefix("🔔") {
                                 responseBuffer = text
                             }
@@ -657,10 +686,10 @@ class GatewayClient {
             }
             // Check for completion (state: "final")
             if let state = payload["state"] as? String, state == "final" {
-                // For main session, only show if we captured a bell message
-                if isMainSession {
+                // For notification sessions, only show if we captured a bell message
+                if isNotificationSession {
                     if responseBuffer.hasPrefix("🔔") {
-                        print("Bell notification from main: \(responseBuffer.prefix(50))...")
+                        print("Bell notification: \(responseBuffer.prefix(50))...")
                         showActivityNudge(responseBuffer)
                         responseBuffer = ""
                     }
@@ -671,12 +700,14 @@ class GatewayClient {
             }
 
         case "agent":
-            // Process pizza sessions OR main session (for bell notifications)
+            // Process pizza sessions OR notification sessions (main, telegram alerts)
             let sessionKey = payload["sessionKey"] as? String ?? ""
             let isPizzaSession = sessionKey.hasPrefix("agent:main:app:pizza:")
             let isMainSession = sessionKey.hasPrefix("agent:main:session:main:")
+            let isTelegramAlerts = sessionKey.contains("telegram:group:-1003723640588")
+            let isNotificationSession = isMainSession || isTelegramAlerts
 
-            guard isPizzaSession || isMainSession else {
+            guard isPizzaSession || isNotificationSession else {
                 return
             }
 
@@ -684,8 +715,8 @@ class GatewayClient {
             if let stream = payload["stream"] as? String, stream == "assistant",
                let data = payload["data"] as? [String: Any],
                let text = data["text"] as? String {
-                // For main session, only capture if starts with bell
-                if isMainSession {
+                // For notification sessions, only capture if starts with bell
+                if isNotificationSession {
                     if text.hasPrefix("🔔") {
                         responseBuffer = text
                     }
@@ -699,8 +730,8 @@ class GatewayClient {
                let phase = data["phase"] as? String, phase == "end" {
                 print(">>> Agent ended, delivering response")
 
-                // For main session, only show if we captured a bell message
-                if isMainSession {
+                // For notification sessions, only show if we captured a bell message
+                if isNotificationSession {
                     if responseBuffer.hasPrefix("🔔") {
                         showActivityNudge(responseBuffer)
                         responseBuffer = ""
