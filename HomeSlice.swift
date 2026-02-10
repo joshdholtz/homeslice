@@ -730,21 +730,73 @@ struct SpeechBubble: View {
 
 // MARK: - Chat UI Components
 
+// NSTextField wrapper for reliable keyboard input
+struct MacTextField: NSViewRepresentable {
+    @Binding var text: String
+    var placeholder: String
+    var onSubmit: () -> Void
+
+    func makeNSView(context: Context) -> NSTextField {
+        let textField = NSTextField()
+        textField.placeholderString = placeholder
+        textField.delegate = context.coordinator
+        textField.font = .systemFont(ofSize: 12)
+        textField.isBordered = true
+        textField.bezelStyle = .roundedBezel
+        textField.focusRingType = .none
+        return textField
+    }
+
+    func updateNSView(_ nsView: NSTextField, context: Context) {
+        if nsView.stringValue != text {
+            nsView.stringValue = text
+        }
+        // Auto-focus
+        DispatchQueue.main.async {
+            if let window = nsView.window, window.firstResponder != nsView {
+                window.makeFirstResponder(nsView)
+            }
+        }
+    }
+
+    func makeCoordinator() -> Coordinator {
+        Coordinator(self)
+    }
+
+    class Coordinator: NSObject, NSTextFieldDelegate {
+        var parent: MacTextField
+
+        init(_ parent: MacTextField) {
+            self.parent = parent
+        }
+
+        func controlTextDidChange(_ obj: Notification) {
+            if let textField = obj.object as? NSTextField {
+                parent.text = textField.stringValue
+            }
+        }
+
+        func control(_ control: NSControl, textView: NSTextView, doCommandBy commandSelector: Selector) -> Bool {
+            if commandSelector == #selector(NSResponder.insertNewline(_:)) {
+                parent.onSubmit()
+                return true
+            }
+            return false
+        }
+    }
+}
+
 struct ChatInputBubble: View {
     @EnvironmentObject var pizzaState: PizzaState
-    @FocusState private var isFocused: Bool
 
     var body: some View {
         HStack(spacing: 8) {
-            TextField("Ask me...", text: $pizzaState.chatMessage)
-                .textFieldStyle(.roundedBorder)
-                .font(.system(size: 12))
-                .foregroundColor(.black)
-                .frame(width: 140)
-                .focused($isFocused)
-                .onSubmit {
-                    pizzaState.sendMessage()
-                }
+            MacTextField(
+                text: $pizzaState.chatMessage,
+                placeholder: "Ask me...",
+                onSubmit: { pizzaState.sendMessage() }
+            )
+            .frame(width: 140, height: 22)
 
             Button(action: { pizzaState.sendMessage() }) {
                 Image(systemName: "arrow.up.circle.fill")
@@ -766,7 +818,6 @@ struct ChatInputBubble: View {
                 .fill(.white)
                 .shadow(radius: 3)
         )
-        .onAppear { isFocused = true }
     }
 }
 
