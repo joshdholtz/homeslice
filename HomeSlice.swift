@@ -42,8 +42,8 @@ class AppDelegate: NSObject, NSApplicationDelegate {
     }
 
     func setupPanel() {
-        // Create floating panel (extra large to accommodate animations and shadow)
-        let panelSize = NSSize(width: 300, height: 350)
+        // Create floating panel
+        let panelSize = NSSize(width: 200, height: 240)
         panel = NSPanel(
             contentRect: NSRect(
                 x: NSScreen.main!.frame.midX - panelSize.width / 2,
@@ -69,6 +69,13 @@ class AppDelegate: NSObject, NSApplicationDelegate {
         let hostingView = NSHostingView(rootView: KawaiiPizzaView().environmentObject(pizzaState))
         hostingView.frame = panel.contentView!.bounds
         hostingView.autoresizingMask = [.width, .height]
+
+        // Disable clipping so content can extend beyond window bounds
+        hostingView.wantsLayer = true
+        hostingView.layer?.masksToBounds = false
+        panel.contentView?.wantsLayer = true
+        panel.contentView?.layer?.masksToBounds = false
+
         panel.contentView = hostingView
 
         panel.orderFrontRegardless()
@@ -549,7 +556,7 @@ struct PizzaShadow: View {
             .fill(Color.black.opacity(0.15))
             .blur(radius: 10)
             .frame(width: 80, height: 30)
-            .offset(y: 50)
+            .offset(y: 55)
     }
 }
 
