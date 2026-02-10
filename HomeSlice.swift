@@ -89,16 +89,22 @@ class PizzaState: ObservableObject {
 
         // Connect to gateway and fetch history after identity is initialized
         DispatchQueue.main.asyncAfter(deadline: .now() + 2) { [weak self] in
-            guard let self = self else { return }
+            guard let self = self else {
+                print("[Startup] self was nil")
+                return
+            }
+            print("[Startup] Checking identity... initialized=\(DeviceIdentity.shared.isInitialized)")
             guard DeviceIdentity.shared.isInitialized else {
                 print("[Startup] Waiting for device identity...")
                 return
             }
+            print("[Startup] botURL=\(self.botURL.prefix(30))... botToken=\(self.botToken.isEmpty ? "empty" : "set")")
             guard !self.botURL.isEmpty, !self.botToken.isEmpty else {
                 print("[Startup] No bot URL/token configured")
                 return
             }
             // Connect to gateway for live alerts
+            print("[Startup] Calling connectForAlerts...")
             GatewayClient.shared.connectForAlerts(url: self.botURL, token: self.botToken)
             // Fetch history
             self.fetchHistory()
