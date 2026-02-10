@@ -86,6 +86,11 @@ class PizzaState: ObservableObject {
         self.botURL = UserDefaults.standard.string(forKey: "botURL") ?? ""
         self.botToken = UserDefaults.standard.string(forKey: "botToken") ?? ""
         setupAppMonitoring()
+
+        // Fetch recent history from server on startup
+        DispatchQueue.main.asyncAfter(deadline: .now() + 1) { [weak self] in
+            self?.fetchHistory()
+        }
     }
 
     private func setupAppMonitoring() {
@@ -126,6 +131,107 @@ class PizzaState: ObservableObject {
         if chatHistory.count > maxHistoryMessages {
             chatHistory.removeFirst()
         }
+    }
+
+    func fetchHistory() {
+        guard !botURL.isEmpty, !botToken.isEmpty else { return }
+
+        // Convert WS URL to HTTP URL
+        var httpURL = botURL
+            .replacingOccurrences(of: "wss://", with: "https://")
+            .replacingOccurrences(of: "ws://", with: "http://")
+
+        // Remove /gateway path if present and add /tools/invoke
+        if httpURL.hasSuffix("/gateway") {
+            httpURL = String(httpURL.dropLast("/gateway".count))
+        }
+        httpURL += "/tools/invoke"
+
+        guard let url = URL(string: httpURL) else {
+            print(">>> Invalid history URL: \(httpURL)")
+            return
+        }
+
+        print(">>> Fetching history from: \(httpURL)")
+
+        var request = URLRequest(url: url)
+        request.httpMethod = "POST"
+        request.setValue("Bearer \(botToken)", forHTTPHeaderField: "Authorization")
+        request.setValue("application/json", forHTTPHeaderField: "Content-Type")
+
+        let body: [String: Any] = [
+            "tool": "sessions_history",
+            "args": [
+                "sessionKey": "agent:main:app:pizza:main",
+                "limit": 20,
+                "includeTools": false
+            ]
+        ]
+
+        guard let bodyData = try? JSONSerialization.data(withJSONObject: body) else { return }
+        request.httpBody = bodyData
+
+        URLSession.shared.dataTask(with: request) { [weak self] data, response, error in
+            guard let data = data, error == nil else {
+                print(">>> History fetch error: \(error?.localizedDescription ?? "unknown")")
+                return
+            }
+
+            // Parse response
+            guard let json = try? JSONSerialization.jsonObject(with: data) as? [String: Any] else {
+                print(">>> Failed to parse history response")
+                return
+            }
+
+            // Extract messages from response
+            // Response format: { "messages": [ { "role": "user"/"assistant", "content": [...] } ] }
+            guard let messages = json["messages"] as? [[String: Any]] else {
+                print(">>> No messages in history response: \(json)")
+                return
+            }
+
+            DispatchQueue.main.async {
+                guard let self = self else { return }
+
+                var loadedMessages: [ChatMessage] = []
+
+                for msg in messages {
+                    guard let role = msg["role"] as? String,
+                          role == "user" || role == "assistant" else { continue }
+
+                    // Extract text content
+                    var text = ""
+                    if let content = msg["content"] as? [[String: Any]] {
+                        for block in content {
+                            if let type = block["type"] as? String, type == "text",
+                               let blockText = block["text"] as? String {
+                                text += blockText
+                            }
+                        }
+                    } else if let content = msg["content"] as? String {
+                        text = content
+                    }
+
+                    guard !text.isEmpty else { continue }
+
+                    // Parse timestamp if available
+                    var timestamp = Date()
+                    if let createdAt = msg["createdAt"] as? String {
+                        let formatter = ISO8601DateFormatter()
+                        formatter.formatOptions = [.withInternetDateTime, .withFractionalSeconds]
+                        timestamp = formatter.date(from: createdAt) ?? Date()
+                    }
+
+                    loadedMessages.append(ChatMessage(role: role, content: text, timestamp: timestamp))
+                }
+
+                if !loadedMessages.isEmpty {
+                    // Replace history with loaded messages (they're older)
+                    self.chatHistory = loadedMessages
+                    print(">>> Loaded \(loadedMessages.count) messages from history")
+                }
+            }
+        }.resume()
     }
 
     func getAppContext() -> String {
