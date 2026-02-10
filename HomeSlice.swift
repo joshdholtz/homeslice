@@ -967,16 +967,16 @@ struct KawaiiPizzaView: View {
 
                 // Thinking indicator
                 if pizzaState.isThinking {
+                    let _ = print(">>> isThinking=true, showing dots")
                     ThinkingBubble()
                         .offset(x: 60, y: -60)
-                        .transition(.scale.combined(with: .opacity))
                 }
 
                 // Bot response bubble
                 if pizzaState.showResponse {
+                    let _ = print(">>> showResponse=true, rendering bubble")
                     ResponseBubble(message: pizzaState.botResponse)
                         .offset(x: 70, y: -70)
-                        .transition(.scale.combined(with: .opacity))
                 }
 
                 // Chat input
@@ -1017,7 +1017,8 @@ struct KawaiiPizzaView: View {
             }
         }
         .frame(maxWidth: .infinity, maxHeight: .infinity)
-        .animation(.spring(response: 0.3), value: pizzaState.mood)
+        // Temporarily remove animation to debug
+        // .animation(.spring(response: 0.3), value: pizzaState.mood)
         .onAppear {
             startAnimations()
             setupNotifications()
