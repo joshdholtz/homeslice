@@ -99,8 +99,15 @@ class PizzaState: ObservableObject {
     func getAppContext() -> String {
         var context = "Current app: \(currentApp)"
         if recentApps.count > 1 {
-            let recent = recentApps.suffix(5).map { $0.app }.joined(separator: " → ")
-            context += "\nRecent: \(recent)"
+            // Show last 10 with timestamps
+            let formatter = DateFormatter()
+            formatter.timeStyle = .short
+
+            let recent = recentApps.suffix(10).map {
+                "\(formatter.string(from: $0.timestamp)) \($0.app)"
+            }.joined(separator: " → ")
+            context += "\nRecent activity: \(recent)"
+            context += "\nTotal switches this session: \(recentApps.count)"
         }
         return context
     }
