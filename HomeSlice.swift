@@ -218,6 +218,12 @@ struct KawaiiPizzaView: View {
 
     var body: some View {
         ZStack {
+            // Shadow as bottom layer in ZStack (not using .background)
+            PizzaShadow()
+                .scaleEffect(breatheScale)
+                .rotationEffect(.degrees(wiggleAngle + spinAngle))
+                .offset(x: danceOffset, y: bobOffset + jumpOffset + 10)
+
             // Particle effects layer
             if pizzaState.showParticles {
                 ParticleView(type: pizzaState.particleType)
