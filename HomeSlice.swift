@@ -1453,10 +1453,13 @@ struct ResponseBubble: View {
                 .font(.system(size: 14))
                 .foregroundColor(.black)
                 .multilineTextAlignment(.leading)
+                .fixedSize(horizontal: false, vertical: true)
                 .frame(maxWidth: .infinity, alignment: .leading)
         }
         .padding(12)
-        .frame(width: 220, height: 150)
+        .frame(width: 220)
+        .frame(maxHeight: 200)  // Grows with content, max 200
+        .fixedSize(horizontal: false, vertical: true)
         .background(
             RoundedRectangle(cornerRadius: 12)
                 .fill(Color.white)
