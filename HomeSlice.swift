@@ -106,11 +106,12 @@ class PizzaState: ObservableObject {
             GatewayClient.shared.connectForAlerts(url: self.botURL, token: self.botToken)
             // Fetch initial history
             self.fetchHistory()
-            // Start polling for new alerts every 10 seconds
-            self.startPolling()
+            // Polling disabled - using WebSocket events instead
+            // self.startPolling()
         }
     }
 
+    /*
     private func startPolling() {
         pollTimer?.invalidate()
         pollTimer = Timer.scheduledTimer(withTimeInterval: 10, repeats: true) { [weak self] _ in
@@ -118,7 +119,9 @@ class PizzaState: ObservableObject {
         }
         print("[Polling] Started polling for alerts every 10s")
     }
+    */
 
+    /*
     private func pollForNewAlerts() {
         guard !botURL.isEmpty, !botToken.isEmpty else { return }
 
@@ -223,6 +226,7 @@ class PizzaState: ObservableObject {
             }
         }.resume()
     }
+    */
 
     private func setupAppMonitoring() {
         // Get initial app
