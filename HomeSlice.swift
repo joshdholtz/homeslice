@@ -1,6 +1,8 @@
 import AppKit
 import SwiftUI
 import Combine
+import CryptoKit
+import Security
 
 // MARK: - Pizza State
 
@@ -53,7 +55,7 @@ class PizzaState: ObservableObject {
         isThinking = true
         mood = .excited
 
-        ChatService.shared.send(message: message, to: botURL, token: botToken) { [weak self] response in
+        GatewayClient.shared.send(message: message, to: botURL, token: botToken) { [weak self] response in
             DispatchQueue.main.async {
                 self?.isThinking = false
                 if let response = response {
@@ -61,8 +63,8 @@ class PizzaState: ObservableObject {
                     self?.showResponse = true
                     self?.mood = .happy
 
-                    // Hide response after 5 seconds
-                    DispatchQueue.main.asyncAfter(deadline: .now() + 5) {
+                    // Hide response after 10 seconds (real responses may be longer)
+                    DispatchQueue.main.asyncAfter(deadline: .now() + 10) {
                         self?.showResponse = false
                         self?.botResponse = ""
                     }
@@ -87,48 +89,309 @@ enum ParticleType {
     case stars
 }
 
-// MARK: - Chat Service
+// MARK: - Device Identity (Ed25519 keypair in Keychain)
 
-class ChatService {
-    static let shared = ChatService()
+class DeviceIdentity {
+    static let shared = DeviceIdentity()
 
-    func send(message: String, to urlString: String, token: String, completion: @escaping (String?) -> Void) {
-        // Ensure URL ends with /hooks/wake for OpenClaw
-        var finalURL = urlString
-        if !finalURL.hasSuffix("/hooks/wake") {
-            if finalURL.hasSuffix("/") {
-                finalURL += "hooks/wake"
-            } else {
-                finalURL += "/hooks/wake"
-            }
+    private let deviceIdKey = "homeslice.device.id"
+    private let privateKeyTag = "homeslice.device.privateKey"
+
+    var deviceId: String {
+        if let stored = UserDefaults.standard.string(forKey: deviceIdKey) {
+            return stored
+        }
+        let newId = UUID().uuidString.lowercased()
+        UserDefaults.standard.set(newId, forKey: deviceIdKey)
+        return newId
+    }
+
+    private var _privateKey: Curve25519.Signing.PrivateKey?
+
+    var privateKey: Curve25519.Signing.PrivateKey {
+        if let key = _privateKey { return key }
+
+        // Try to load from Keychain
+        if let keyData = loadFromKeychain(tag: privateKeyTag),
+           let key = try? Curve25519.Signing.PrivateKey(rawRepresentation: keyData) {
+            _privateKey = key
+            return key
         }
 
-        guard let url = URL(string: finalURL) else {
-            completion(nil)
+        // Generate new key
+        let newKey = Curve25519.Signing.PrivateKey()
+        saveToKeychain(tag: privateKeyTag, data: newKey.rawRepresentation)
+        _privateKey = newKey
+        return newKey
+    }
+
+    var publicKeyBase64: String {
+        Data(privateKey.publicKey.rawRepresentation).base64EncodedString()
+    }
+
+    func sign(nonce: String) -> String {
+        guard let nonceData = nonce.data(using: .utf8) else { return "" }
+        guard let signature = try? privateKey.signature(for: nonceData) else { return "" }
+        return Data(signature).base64EncodedString()
+    }
+
+    private func saveToKeychain(tag: String, data: Data) {
+        let query: [String: Any] = [
+            kSecClass as String: kSecClassGenericPassword,
+            kSecAttrAccount as String: tag,
+            kSecValueData as String: data
+        ]
+        SecItemDelete(query as CFDictionary)
+        SecItemAdd(query as CFDictionary, nil)
+    }
+
+    private func loadFromKeychain(tag: String) -> Data? {
+        let query: [String: Any] = [
+            kSecClass as String: kSecClassGenericPassword,
+            kSecAttrAccount as String: tag,
+            kSecReturnData as String: true
+        ]
+        var result: AnyObject?
+        let status = SecItemCopyMatching(query as CFDictionary, &result)
+        return status == errSecSuccess ? result as? Data : nil
+    }
+}
+
+// MARK: - Gateway WebSocket Client
+
+class GatewayClient {
+    static let shared = GatewayClient()
+
+    private var webSocket: URLSessionWebSocketTask?
+    private var session: URLSession?
+    private var completion: ((String?) -> Void)?
+    private var currentRunId: String?
+    private var responseBuffer: String = ""
+    private var challengeNonce: String?
+    private var challengeTs: Int64?
+    private var isConnected = false
+    private var pendingMessage: String?
+    private var gatewayURL: String = ""
+    private var gatewayToken: String = ""
+    private var requestId = 0
+
+    func send(message: String, to url: String, token: String, completion: @escaping (String?) -> Void) {
+        self.completion = completion
+        self.pendingMessage = message
+        self.gatewayURL = url
+        self.gatewayToken = token
+        self.responseBuffer = ""
+
+        if isConnected {
+            sendChatMessage(message)
+        } else {
+            connect()
+        }
+    }
+
+    private func connect() {
+        // Convert https:// to wss://
+        var wsURL = gatewayURL
+        if wsURL.hasPrefix("https://") {
+            wsURL = "wss://" + wsURL.dropFirst(8)
+        } else if wsURL.hasPrefix("http://") {
+            wsURL = "ws://" + wsURL.dropFirst(7)
+        } else if !wsURL.hasPrefix("wss://") && !wsURL.hasPrefix("ws://") {
+            wsURL = "wss://" + wsURL
+        }
+
+        guard let url = URL(string: wsURL) else {
+            completion?(nil)
             return
         }
 
-        var request = URLRequest(url: url)
-        request.httpMethod = "POST"
-        request.setValue("application/json", forHTTPHeaderField: "Content-Type")
-        if !token.isEmpty {
-            request.setValue("Bearer \(token)", forHTTPHeaderField: "Authorization")
+        session = URLSession(configuration: .default)
+        webSocket = session?.webSocketTask(with: url)
+        webSocket?.resume()
+        receiveMessage()
+    }
+
+    private func receiveMessage() {
+        webSocket?.receive { [weak self] result in
+            switch result {
+            case .success(let message):
+                switch message {
+                case .string(let text):
+                    self?.handleMessage(text)
+                case .data(let data):
+                    if let text = String(data: data, encoding: .utf8) {
+                        self?.handleMessage(text)
+                    }
+                @unknown default:
+                    break
+                }
+                self?.receiveMessage()
+
+            case .failure(let error):
+                print("WebSocket error: \(error)")
+                self?.isConnected = false
+                self?.completion?(nil)
+            }
+        }
+    }
+
+    private func handleMessage(_ text: String) {
+        guard let data = text.data(using: .utf8),
+              let json = try? JSONSerialization.jsonObject(with: data) as? [String: Any] else {
+            return
         }
 
-        // OpenClaw format: {"text": "...", "mode": "now"}
-        let body: [String: Any] = ["text": message, "mode": "now"]
-        request.httpBody = try? JSONSerialization.data(withJSONObject: body)
+        let type = json["type"] as? String ?? ""
 
-        URLSession.shared.dataTask(with: request) { data, response, error in
-            if let httpResponse = response as? HTTPURLResponse {
-                if httpResponse.statusCode == 200 || httpResponse.statusCode == 202 {
-                    // OpenClaw accepted the message
-                    completion("Message sent!")
-                    return
+        switch type {
+        case "event":
+            handleEvent(json)
+        case "res":
+            handleResponse(json)
+        default:
+            break
+        }
+    }
+
+    private func handleEvent(_ json: [String: Any]) {
+        let event = json["event"] as? String ?? ""
+        let payload = json["payload"] as? [String: Any] ?? [:]
+
+        switch event {
+        case "connect.challenge":
+            challengeNonce = payload["nonce"] as? String
+            challengeTs = payload["ts"] as? Int64
+            sendConnectRequest()
+
+        case "chat":
+            // Extract assistant message content
+            if let messages = payload["messages"] as? [[String: Any]] {
+                for msg in messages {
+                    if let role = msg["role"] as? String, role == "assistant",
+                       let content = msg["content"] as? String {
+                        responseBuffer = content
+                    }
                 }
             }
-            completion(nil)
-        }.resume()
+            // Check for completion
+            if let status = payload["status"] as? String, status == "completed" {
+                finishWithResponse()
+            }
+
+        case "agent":
+            // Check for run completion
+            if let status = payload["status"] as? String,
+               (status == "completed" || status == "done") {
+                finishWithResponse()
+            }
+
+        default:
+            break
+        }
+    }
+
+    private func handleResponse(_ json: [String: Any]) {
+        let ok = json["ok"] as? Bool ?? false
+        let id = json["id"] as? String ?? ""
+        let payload = json["payload"] as? [String: Any] ?? [:]
+
+        if id == "1" {
+            // Connect response
+            if ok {
+                isConnected = true
+                if let msg = pendingMessage {
+                    pendingMessage = nil
+                    sendChatMessage(msg)
+                }
+            } else {
+                let error = payload["error"] as? String ?? "Connection failed"
+                print("Connect failed: \(error)")
+                completion?(nil)
+            }
+        } else if id == "2" {
+            // chat.send response
+            if ok {
+                currentRunId = payload["runId"] as? String
+                // Wait for events to get the actual response
+            }
+        }
+    }
+
+    private func sendConnectRequest() {
+        guard let nonce = challengeNonce, let ts = challengeTs else { return }
+
+        let device = DeviceIdentity.shared
+        let signature = device.sign(nonce: nonce)
+
+        let params: [String: Any] = [
+            "minProtocol": 3,
+            "maxProtocol": 3,
+            "client": [
+                "id": "homeslice",
+                "version": "1.0.0",
+                "platform": "macos",
+                "mode": "operator"
+            ],
+            "role": "operator",
+            "scopes": ["operator.read", "operator.write"],
+            "caps": [],
+            "commands": [],
+            "permissions": [:],
+            "auth": ["token": gatewayToken],
+            "locale": "en-US",
+            "userAgent": "HomeSlice/1.0.0",
+            "device": [
+                "id": device.deviceId,
+                "publicKey": device.publicKeyBase64,
+                "signature": signature,
+                "signedAt": ts,
+                "nonce": nonce
+            ]
+        ]
+
+        sendRequest(id: "1", method: "connect", params: params)
+    }
+
+    private func sendChatMessage(_ message: String) {
+        let params: [String: Any] = [
+            "sessionKey": "main",
+            "message": message,
+            "idempotencyKey": UUID().uuidString
+        ]
+        sendRequest(id: "2", method: "chat.send", params: params)
+    }
+
+    private func sendRequest(id: String, method: String, params: [String: Any]) {
+        let request: [String: Any] = [
+            "type": "req",
+            "id": id,
+            "method": method,
+            "params": params
+        ]
+
+        guard let data = try? JSONSerialization.data(withJSONObject: request),
+              let text = String(data: data, encoding: .utf8) else {
+            return
+        }
+
+        webSocket?.send(.string(text)) { error in
+            if let error = error {
+                print("Send error: \(error)")
+            }
+        }
+    }
+
+    private func finishWithResponse() {
+        let response = responseBuffer.isEmpty ? "Done!" : responseBuffer
+        DispatchQueue.main.async {
+            self.completion?(response)
+        }
+        responseBuffer = ""
+    }
+
+    func disconnect() {
+        webSocket?.cancel(with: .goingAway, reason: nil)
+        isConnected = false
     }
 }
 
