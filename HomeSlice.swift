@@ -241,7 +241,7 @@ struct KawaiiPizzaView: View {
                 // Speech bubble for mood (overlaid, not in VStack)
                 if pizzaState.mood != .happy {
                     SpeechBubble(mood: pizzaState.mood)
-                        .offset(y: -85)
+                        .offset(x: 50, y: -50)
                         .transition(.scale.combined(with: .opacity))
                 }
             }
