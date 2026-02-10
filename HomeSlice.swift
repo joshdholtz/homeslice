@@ -42,8 +42,8 @@ class AppDelegate: NSObject, NSApplicationDelegate {
     }
 
     func setupPanel() {
-        // Create floating panel
-        let panelSize = NSSize(width: 180, height: 220)
+        // Create floating panel (larger to accommodate animations and shadow)
+        let panelSize = NSSize(width: 220, height: 280)
         panel = NSPanel(
             contentRect: NSRect(
                 x: NSScreen.main!.frame.midX - panelSize.width / 2,
@@ -59,7 +59,7 @@ class AppDelegate: NSObject, NSApplicationDelegate {
         // Configure panel
         panel.isOpaque = false
         panel.backgroundColor = .clear
-        panel.hasShadow = true
+        panel.hasShadow = false  // Disable window shadow - we draw our own
         panel.level = .floating
         panel.collectionBehavior = [.canJoinAllSpaces, .fullScreenAuxiliary]
         panel.isMovableByWindowBackground = true
