@@ -1478,10 +1478,18 @@ class AppDelegate: NSObject, NSApplicationDelegate {
             if popover.isShown {
                 popover.close()
             } else {
+                // Activate app to accept keyboard input
+                NSApp.activate(ignoringOtherApps: true)
+
                 // Show relative to the panel center
                 let panelBounds = panel.contentView!.bounds
                 let rect = NSRect(x: panelBounds.midX - 10, y: panelBounds.midY, width: 20, height: 20)
                 popover.show(relativeTo: rect, of: panel.contentView!, preferredEdge: .maxY)
+
+                // Make popover's window key for input focus
+                DispatchQueue.main.asyncAfter(deadline: .now() + 0.1) {
+                    popover.contentViewController?.view.window?.makeKey()
+                }
             }
         }
     }
