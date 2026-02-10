@@ -244,8 +244,12 @@ class GatewayClient {
 
             case .failure(let error):
                 print("WebSocket receive error: \(error.localizedDescription)")
+                print("WebSocket state: \(self?.webSocket?.state.rawValue ?? -1)")
                 self?.isConnected = false
-                // Don't call completion here - might just be a disconnect after success
+                if self?.currentRunId == nil {
+                    // Never got a successful chat response
+                    self?.completion?(nil)
+                }
             }
         }
     }
@@ -340,36 +344,28 @@ class GatewayClient {
     }
 
     private func sendConnectRequest() {
-        guard let nonce = challengeNonce, let ts = challengeTs else { return }
+        guard challengeNonce != nil else { return }
 
-        let device = DeviceIdentity.shared
-        let signature = device.sign(nonce: nonce)
-
-        let params: [String: Any] = [
+        // Simplified connect request - minimal required fields
+        var params: [String: Any] = [
             "minProtocol": 3,
             "maxProtocol": 3,
             "client": [
                 "id": "homeslice",
                 "version": "1.0.0",
-                "platform": "macos",
-                "mode": "operator"
+                "platform": "macos"
             ],
-            "role": "operator",
-            "scopes": ["operator.read", "operator.write"],
+            "role": "user",
+            "scopes": ["chat"],
             "caps": [],
-            "commands": [],
-            "permissions": [:],
-            "auth": ["token": gatewayToken],
             "locale": "en-US",
-            "userAgent": "HomeSlice/1.0.0",
-            "device": [
-                "id": device.deviceId,
-                "publicKey": device.publicKeyBase64,
-                "signature": signature,
-                "signedAt": ts,
-                "nonce": nonce
-            ]
+            "userAgent": "HomeSlice/1.0.0"
         ]
+
+        // Add auth token if provided
+        if !gatewayToken.isEmpty {
+            params["auth"] = ["token": gatewayToken]
+        }
 
         sendRequest(id: "1", method: "connect", params: params)
     }
