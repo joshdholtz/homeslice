@@ -253,6 +253,7 @@ class GatewayClient {
     private var gatewayURL: String = ""
     private var gatewayToken: String = ""
     private var requestId = 0
+    private var responseDelivered = false  // Stop processing after response
 
     func send(message: String, to url: String, token: String, completion: @escaping (String?) -> Void) {
         self.completion = completion
@@ -260,6 +261,7 @@ class GatewayClient {
         self.gatewayURL = url
         self.gatewayToken = token
         self.responseBuffer = ""
+        self.responseDelivered = false  // Reset for new request
 
         if isConnected {
             sendChatMessage(message)
@@ -307,36 +309,36 @@ class GatewayClient {
 
     private func receiveMessage() {
         webSocket?.receive { [weak self] result in
-            switch result {
-            case .success(let message):
-                switch message {
-                case .string(let text):
-                    self?.handleMessage(text)
-                case .data(let data):
-                    if let text = String(data: data, encoding: .utf8) {
-                        self?.handleMessage(text)
-                    }
-                @unknown default:
-                    break
-                }
-                self?.receiveMessage()
+            // Ensure we're on main thread for all handling
+            DispatchQueue.main.async {
+                guard let self = self else { return }
 
-            case .failure(let error):
-                print("WebSocket receive error: \(error.localizedDescription)")
-                print("WebSocket state: \(self?.webSocket?.state.rawValue ?? -1)")
-                // Try to get close code and reason
-                if let urlError = error as? URLError {
-                    print("URLError code: \(urlError.code.rawValue)")
+                // Stop processing if we've already delivered a response
+                if self.responseDelivered {
+                    print(">>> Ignoring message, response already delivered")
+                    return
                 }
-                let nsError = error as NSError
-                print("Error domain: \(nsError.domain), code: \(nsError.code)")
-                if let reason = nsError.userInfo["NSLocalizedDescription"] as? String {
-                    print("Close reason: \(reason)")
-                }
-                self?.isConnected = false
-                if self?.currentRunId == nil {
-                    // Never got a successful chat response
-                    self?.completion?(nil)
+
+                switch result {
+                case .success(let message):
+                    switch message {
+                    case .string(let text):
+                        self.handleMessage(text)
+                    case .data(let data):
+                        if let text = String(data: data, encoding: .utf8) {
+                            self.handleMessage(text)
+                        }
+                    @unknown default:
+                        break
+                    }
+                    self.receiveMessage()
+
+                case .failure(let error):
+                    print("WebSocket receive error: \(error.localizedDescription)")
+                    self.isConnected = false
+                    if self.currentRunId == nil && !self.responseDelivered {
+                        self.completion?(nil)
+                    }
                 }
             }
         }
@@ -531,16 +533,17 @@ class GatewayClient {
     }
 
     private func finishWithResponse() {
-        guard let completion = self.completion else { return }
+        guard let completion = self.completion, !responseDelivered else { return }
+
+        responseDelivered = true  // Stop processing more events
         self.completion = nil  // Prevent double-calling
 
         let response = responseBuffer.isEmpty ? "Done!" : responseBuffer
         responseBuffer = ""
         currentRunId = nil
 
-        DispatchQueue.main.async {
-            completion(response)
-        }
+        print(">>> Delivering response, stopping event processing")
+        completion(response)  // Already on main thread
     }
 
     func disconnect() {
