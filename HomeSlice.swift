@@ -232,6 +232,7 @@ struct KawaiiPizzaView: View {
                 // Pizza body
                 ZStack {
                     PizzaSlice()
+                        .shadow(color: .black.opacity(0.2), radius: 10, x: 0, y: 6)
                         .scaleEffect(breatheScale)
 
                     KawaiiFace(isBlinking: isBlinking, mood: pizzaState.mood)
@@ -240,7 +241,7 @@ struct KawaiiPizzaView: View {
                 }
                 .rotationEffect(.degrees(wiggleAngle + spinAngle))
 
-                // Speech bubble outside drawingGroup so it doesn't clip
+                // Speech bubble outside so it doesn't clip
                 if pizzaState.mood != .happy {
                     SpeechBubble(mood: pizzaState.mood)
                         .offset(x: 50, y: -50)
@@ -248,7 +249,6 @@ struct KawaiiPizzaView: View {
                 }
             }
             .offset(x: danceOffset, y: bobOffset + jumpOffset)
-            // .shadow(color: .black.opacity(0.15), radius: 12, x: 0, y: 8) // temporarily disabled
             .onTapGesture {
                 handleTap()
             }
