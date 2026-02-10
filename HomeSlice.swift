@@ -1730,11 +1730,11 @@ struct KawaiiPizzaView: View {
                         .transition(.scale.combined(with: .opacity))
                 }
 
-                // Thinking indicator - position matches response bubble
+                // Thinking indicator - same side as response but closer
                 if pizzaState.chatDisplay.isThinking {
                     ThinkingBubble()
                         .offset(
-                            x: pizzaState.chatDisplay.bubbleOnLeft ? -160 : 160,
+                            x: pizzaState.chatDisplay.bubbleOnLeft ? -70 : 70,
                             y: -60
                         )
                 }
