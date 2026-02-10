@@ -271,6 +271,10 @@ class GatewayClient {
     private var requestId = 0
     private var responseDelivered = false  // Stop processing after response
 
+    // Session management
+    private let pizzaSessionKey = "app:pizza:main"
+    private var sessionInitialized = false
+
     func send(message: String, to url: String, token: String, completion: @escaping (String?) -> Void) {
         self.completion = completion
         self.pendingMessage = message
@@ -444,6 +448,16 @@ class GatewayClient {
                 print("Connect failed: \(error)")
                 completion?(nil)
             }
+        } else if id == "init" {
+            // Session initialization response
+            if ok {
+                print(">>> Session initialized with concise mode")
+                // Now send the actual pending message
+                if let msg = pendingMessage {
+                    pendingMessage = nil
+                    sendChatMessage(msg)
+                }
+            }
         } else if id == "2" {
             // chat.send response
             if ok {
@@ -515,12 +529,23 @@ class GatewayClient {
     }
 
     private func sendChatMessage(_ message: String) {
-        // Prefix for concise responses
-        let prefixedMessage = "CONCISE MODE: Answer in 1–3 sentences unless I ask for detail. No preamble.\n\n\(message)"
+        // If session not initialized, send concise mode instruction first
+        if !sessionInitialized {
+            sessionInitialized = true
+            let initParams: [String: Any] = [
+                "sessionKey": pizzaSessionKey,
+                "message": "CONCISE MODE: Answer in 1–3 sentences unless I ask for detail. No preamble. The user is interacting via a small desktop pizza companion app.",
+                "idempotencyKey": UUID().uuidString
+            ]
+            sendRequest(id: "init", method: "chat.send", params: initParams)
+            // Store the actual message to send after init completes
+            pendingMessage = message
+            return
+        }
 
         let params: [String: Any] = [
-            "sessionKey": "main",
-            "message": prefixedMessage,
+            "sessionKey": pizzaSessionKey,
+            "message": message,
             "idempotencyKey": UUID().uuidString
         ]
         sendRequest(id: "2", method: "chat.send", params: params)
