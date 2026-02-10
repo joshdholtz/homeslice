@@ -87,13 +87,21 @@ class PizzaState: ObservableObject {
         self.botToken = UserDefaults.standard.string(forKey: "botToken") ?? ""
         setupAppMonitoring()
 
-        // Fetch recent history from server on startup (after identity is initialized)
+        // Connect to gateway and fetch history after identity is initialized
         DispatchQueue.main.asyncAfter(deadline: .now() + 2) { [weak self] in
+            guard let self = self else { return }
             guard DeviceIdentity.shared.isInitialized else {
-                print("[History] Waiting for device identity...")
+                print("[Startup] Waiting for device identity...")
                 return
             }
-            self?.fetchHistory()
+            guard !self.botURL.isEmpty, !self.botToken.isEmpty else {
+                print("[Startup] No bot URL/token configured")
+                return
+            }
+            // Connect to gateway for live alerts
+            GatewayClient.shared.connectForAlerts(url: self.botURL, token: self.botToken)
+            // Fetch history
+            self.fetchHistory()
         }
     }
 
@@ -564,6 +572,18 @@ class GatewayClient {
 
     // Session management
     private let pizzaSessionKey = "app:pizza:main"
+
+    /// Connect to gateway for alerts (called at startup)
+    func connectForAlerts(url: String, token: String) {
+        guard !isConnected else {
+            print("[Alerts] Already connected")
+            return
+        }
+        self.gatewayURL = url
+        self.gatewayToken = token
+        print("[Alerts] Connecting to gateway for alerts...")
+        connect()
+    }
 
     func send(message: String, to url: String, token: String, completion: @escaping (String?) -> Void) {
         self.completion = completion
