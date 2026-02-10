@@ -516,11 +516,16 @@ class GatewayClient {
     }
 
     private func finishWithResponse() {
+        guard let completion = self.completion else { return }
+        self.completion = nil  // Prevent double-calling
+
         let response = responseBuffer.isEmpty ? "Done!" : responseBuffer
-        DispatchQueue.main.async {
-            self.completion?(response)
-        }
         responseBuffer = ""
+        currentRunId = nil
+
+        DispatchQueue.main.async {
+            completion(response)
+        }
     }
 
     func disconnect() {
