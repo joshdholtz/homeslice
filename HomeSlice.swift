@@ -16,6 +16,14 @@ class PizzaState: ObservableObject {
     static let shared = PizzaState()
     @Published var mood: PizzaMood = .happy
     @Published var isVisible: Bool = true
+    @Published var showParticles: Bool = false
+    @Published var particleType: ParticleType = .hearts
+}
+
+enum ParticleType {
+    case hearts
+    case sparkles
+    case stars
 }
 
 // MARK: - App Delegate
@@ -35,7 +43,7 @@ class AppDelegate: NSObject, NSApplicationDelegate {
 
     func setupPanel() {
         // Create floating panel
-        let panelSize = NSSize(width: 150, height: 200)
+        let panelSize = NSSize(width: 180, height: 220)
         panel = NSPanel(
             contentRect: NSRect(
                 x: NSScreen.main!.frame.midX - panelSize.width / 2,
@@ -96,15 +104,38 @@ class AppDelegate: NSObject, NSApplicationDelegate {
         toggleItem.target = self
         menu.addItem(toggleItem)
 
-        // Do a spin!
+        // Fun actions submenu
+        let actionsMenuItem = NSMenuItem(title: "Actions", action: nil, keyEquivalent: "")
+        let actionsSubmenu = NSMenu()
+
         let spinItem = NSMenuItem(title: "Do a Spin!", action: #selector(doSpin), keyEquivalent: "s")
         spinItem.target = self
-        menu.addItem(spinItem)
+        actionsSubmenu.addItem(spinItem)
 
-        // Jump!
         let jumpItem = NSMenuItem(title: "Jump!", action: #selector(doJump), keyEquivalent: "j")
         jumpItem.target = self
-        menu.addItem(jumpItem)
+        actionsSubmenu.addItem(jumpItem)
+
+        let danceItem = NSMenuItem(title: "Dance!", action: #selector(doDance), keyEquivalent: "d")
+        danceItem.target = self
+        actionsSubmenu.addItem(danceItem)
+
+        actionsSubmenu.addItem(NSMenuItem.separator())
+
+        let heartsItem = NSMenuItem(title: "Burst Hearts", action: #selector(burstHearts), keyEquivalent: "")
+        heartsItem.target = self
+        actionsSubmenu.addItem(heartsItem)
+
+        let sparklesItem = NSMenuItem(title: "Burst Sparkles", action: #selector(burstSparkles), keyEquivalent: "")
+        sparklesItem.target = self
+        actionsSubmenu.addItem(sparklesItem)
+
+        let starsItem = NSMenuItem(title: "Burst Stars", action: #selector(burstStars), keyEquivalent: "")
+        starsItem.target = self
+        actionsSubmenu.addItem(starsItem)
+
+        actionsMenuItem.submenu = actionsSubmenu
+        menu.addItem(actionsMenuItem)
 
         menu.addItem(NSMenuItem.separator())
 
@@ -125,12 +156,9 @@ class AppDelegate: NSObject, NSApplicationDelegate {
         pizzaState.isVisible.toggle()
         if pizzaState.isVisible {
             panel.orderFrontRegardless()
-            statusItem.menu?.item(withTitle: "Hide Pizza")?.title = "Hide Pizza"
         } else {
             panel.orderOut(nil)
-            statusItem.menu?.item(withTitle: "Show Pizza")?.title = "Show Pizza"
         }
-        // Update menu item title
         if let item = statusItem.menu?.items.first(where: { $0.title == "Hide Pizza" || $0.title == "Show Pizza" }) {
             item.title = pizzaState.isVisible ? "Hide Pizza" : "Show Pizza"
         }
@@ -144,6 +172,25 @@ class AppDelegate: NSObject, NSApplicationDelegate {
         NotificationCenter.default.post(name: .doJump, object: nil)
     }
 
+    @objc func doDance() {
+        NotificationCenter.default.post(name: .doDance, object: nil)
+    }
+
+    @objc func burstHearts() {
+        pizzaState.particleType = .hearts
+        pizzaState.showParticles = true
+    }
+
+    @objc func burstSparkles() {
+        pizzaState.particleType = .sparkles
+        pizzaState.showParticles = true
+    }
+
+    @objc func burstStars() {
+        pizzaState.particleType = .stars
+        pizzaState.showParticles = true
+    }
+
     func applicationShouldTerminateAfterLastWindowClosed(_ sender: NSApplication) -> Bool {
         return false
     }
@@ -154,6 +201,7 @@ class AppDelegate: NSObject, NSApplicationDelegate {
 extension Notification.Name {
     static let doSpin = Notification.Name("doSpin")
     static let doJump = Notification.Name("doJump")
+    static let doDance = Notification.Name("doDance")
 }
 
 // MARK: - Kawaii Pizza View
@@ -166,27 +214,60 @@ struct KawaiiPizzaView: View {
     @State private var wiggleAngle: Double = 0
     @State private var spinAngle: Double = 0
     @State private var jumpOffset: CGFloat = 0
+    @State private var danceOffset: CGFloat = 0
 
     var body: some View {
-        VStack {
-            ZStack {
-                // Main pizza slice
-                PizzaSlice()
-                    .scaleEffect(breatheScale)
-
-                // Kawaii face
-                KawaiiFace(isBlinking: isBlinking, mood: pizzaState.mood)
-                    .offset(y: 15)
-                    .scaleEffect(breatheScale)
+        ZStack {
+            // Particle effects layer
+            if pizzaState.showParticles {
+                ParticleView(type: pizzaState.particleType)
+                    .onAppear {
+                        DispatchQueue.main.asyncAfter(deadline: .now() + 1.0) {
+                            pizzaState.showParticles = false
+                        }
+                    }
             }
-            .rotationEffect(.degrees(wiggleAngle + spinAngle))
-            .offset(y: bobOffset + jumpOffset)
-            .shadow(color: .black.opacity(0.3), radius: 8, x: 0, y: 4)
 
-            // Speech bubble for mood
-            if pizzaState.mood != .happy {
-                SpeechBubble(mood: pizzaState.mood)
-                    .transition(.scale.combined(with: .opacity))
+            VStack {
+                ZStack {
+                    // Main pizza slice
+                    PizzaSlice()
+                        .scaleEffect(breatheScale)
+
+                    // Kawaii face
+                    KawaiiFace(isBlinking: isBlinking, mood: pizzaState.mood)
+                        .offset(y: 15)
+                        .scaleEffect(breatheScale)
+                }
+                .rotationEffect(.degrees(wiggleAngle + spinAngle))
+                .offset(x: danceOffset, y: bobOffset + jumpOffset)
+                .shadow(color: .black.opacity(0.3), radius: 8, x: 0, y: 4)
+                .onTapGesture {
+                    handleTap()
+                }
+                .contextMenu {
+                    Button("Happy") { pizzaState.mood = .happy }
+                    Button("Excited") { pizzaState.mood = .excited }
+                    Button("Sleepy") { pizzaState.mood = .sleepy }
+                    Button("Love") { pizzaState.mood = .love }
+                    Button("Surprised") { pizzaState.mood = .surprised }
+                    Divider()
+                    Button("Spin!") { performSpin() }
+                    Button("Jump!") { performJump() }
+                    Button("Dance!") { performDance() }
+                    Divider()
+                    Button("Burst Hearts") {
+                        pizzaState.particleType = .hearts
+                        pizzaState.showParticles = true
+                    }
+                    Button("Quit") { NSApp.terminate(nil) }
+                }
+
+                // Speech bubble for mood
+                if pizzaState.mood != .happy {
+                    SpeechBubble(mood: pizzaState.mood)
+                        .transition(.scale.combined(with: .opacity))
+                }
             }
         }
         .animation(.spring(response: 0.3), value: pizzaState.mood)
@@ -196,12 +277,61 @@ struct KawaiiPizzaView: View {
         }
     }
 
+    private func handleTap() {
+        // Random reaction on tap
+        let reactions = ["spin", "jump", "wiggle", "hearts"]
+        let reaction = reactions.randomElement()!
+
+        switch reaction {
+        case "spin":
+            performSpin()
+        case "jump":
+            performJump()
+        case "wiggle":
+            performExtraWiggle()
+        case "hearts":
+            pizzaState.particleType = .hearts
+            pizzaState.showParticles = true
+        default:
+            break
+        }
+    }
+
+    private func performExtraWiggle() {
+        withAnimation(.easeInOut(duration: 0.08)) {
+            wiggleAngle = 8
+        }
+        DispatchQueue.main.asyncAfter(deadline: .now() + 0.08) {
+            withAnimation(.easeInOut(duration: 0.08)) {
+                wiggleAngle = -8
+            }
+        }
+        DispatchQueue.main.asyncAfter(deadline: .now() + 0.16) {
+            withAnimation(.easeInOut(duration: 0.08)) {
+                wiggleAngle = 5
+            }
+        }
+        DispatchQueue.main.asyncAfter(deadline: .now() + 0.24) {
+            withAnimation(.easeInOut(duration: 0.08)) {
+                wiggleAngle = -5
+            }
+        }
+        DispatchQueue.main.asyncAfter(deadline: .now() + 0.32) {
+            withAnimation(.easeInOut(duration: 0.08)) {
+                wiggleAngle = 0
+            }
+        }
+    }
+
     private func setupNotifications() {
         NotificationCenter.default.addObserver(forName: .doSpin, object: nil, queue: .main) { _ in
             performSpin()
         }
         NotificationCenter.default.addObserver(forName: .doJump, object: nil, queue: .main) { _ in
             performJump()
+        }
+        NotificationCenter.default.addObserver(forName: .doDance, object: nil, queue: .main) { _ in
+            performDance()
         }
     }
 
@@ -218,6 +348,22 @@ struct KawaiiPizzaView: View {
         DispatchQueue.main.asyncAfter(deadline: .now() + 0.2) {
             withAnimation(.spring(response: 0.3, dampingFraction: 0.6)) {
                 jumpOffset = 0
+            }
+        }
+    }
+
+    private func performDance() {
+        // Fun little side-to-side dance
+        let moves: [(offset: CGFloat, delay: Double)] = [
+            (-15, 0), (15, 0.1), (-15, 0.2), (15, 0.3),
+            (-10, 0.4), (10, 0.5), (-5, 0.6), (0, 0.7)
+        ]
+
+        for move in moves {
+            DispatchQueue.main.asyncAfter(deadline: .now() + move.delay) {
+                withAnimation(.easeInOut(duration: 0.1)) {
+                    danceOffset = move.offset
+                }
             }
         }
     }
@@ -248,10 +394,22 @@ struct KawaiiPizzaView: View {
         Timer.scheduledTimer(withTimeInterval: 4.0, repeats: true) { _ in
             wiggle()
         }
+
+        // Random action timer (occasional surprise animations)
+        Timer.scheduledTimer(withTimeInterval: 15.0, repeats: true) { _ in
+            randomAction()
+        }
+    }
+
+    private func randomAction() {
+        let actions = ["wiggle", "none", "none", "none"] // Mostly nothing, occasionally wiggle
+        if actions.randomElement() == "wiggle" {
+            performExtraWiggle()
+        }
     }
 
     private func blink() {
-        guard pizzaState.mood != .sleepy else { return } // Sleepy pizza has closed eyes
+        guard pizzaState.mood != .sleepy else { return }
         withAnimation(.easeInOut(duration: 0.1)) {
             isBlinking = true
         }
@@ -279,6 +437,76 @@ struct KawaiiPizzaView: View {
     }
 }
 
+// MARK: - Particle View
+
+struct ParticleView: View {
+    let type: ParticleType
+    @State private var particles: [Particle] = []
+
+    struct Particle: Identifiable {
+        let id = UUID()
+        var x: CGFloat
+        var y: CGFloat
+        var scale: CGFloat
+        var opacity: Double
+        var rotation: Double
+    }
+
+    var particleEmoji: String {
+        switch type {
+        case .hearts: return "❤️"
+        case .sparkles: return "✨"
+        case .stars: return "⭐"
+        }
+    }
+
+    var body: some View {
+        ZStack {
+            ForEach(particles) { particle in
+                Text(particleEmoji)
+                    .font(.system(size: 20))
+                    .scaleEffect(particle.scale)
+                    .opacity(particle.opacity)
+                    .rotationEffect(.degrees(particle.rotation))
+                    .position(x: particle.x, y: particle.y)
+            }
+        }
+        .onAppear {
+            createParticles()
+            animateParticles()
+        }
+    }
+
+    private func createParticles() {
+        particles = (0..<12).map { _ in
+            Particle(
+                x: 90 + CGFloat.random(in: -20...20),
+                y: 100,
+                scale: CGFloat.random(in: 0.5...1.0),
+                opacity: 1.0,
+                rotation: Double.random(in: -30...30)
+            )
+        }
+    }
+
+    private func animateParticles() {
+        for i in particles.indices {
+            let randomX = CGFloat.random(in: -60...60)
+            let randomY = CGFloat.random(in: -80 ... -30)
+            let delay = Double.random(in: 0...0.3)
+
+            DispatchQueue.main.asyncAfter(deadline: .now() + delay) {
+                withAnimation(.easeOut(duration: 0.8)) {
+                    particles[i].x += randomX
+                    particles[i].y += randomY
+                    particles[i].opacity = 0
+                    particles[i].rotation += Double.random(in: -180...180)
+                }
+            }
+        }
+    }
+}
+
 // MARK: - Speech Bubble
 
 struct SpeechBubble: View {
@@ -287,7 +515,7 @@ struct SpeechBubble: View {
     var message: String {
         switch mood {
         case .happy: return ""
-        case .excited: return "Yay! 🎉"
+        case .excited: return "Yay!"
         case .sleepy: return "zzZ..."
         case .love: return "♥‿♥"
         case .surprised: return "!!"
