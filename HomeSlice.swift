@@ -245,6 +245,15 @@ class GatewayClient {
             case .failure(let error):
                 print("WebSocket receive error: \(error.localizedDescription)")
                 print("WebSocket state: \(self?.webSocket?.state.rawValue ?? -1)")
+                // Try to get close code and reason
+                if let urlError = error as? URLError {
+                    print("URLError code: \(urlError.code.rawValue)")
+                }
+                let nsError = error as NSError
+                print("Error domain: \(nsError.domain), code: \(nsError.code)")
+                if let reason = nsError.userInfo["NSLocalizedDescription"] as? String {
+                    print("Close reason: \(reason)")
+                }
                 self?.isConnected = false
                 if self?.currentRunId == nil {
                     // Never got a successful chat response
@@ -344,22 +353,37 @@ class GatewayClient {
     }
 
     private func sendConnectRequest() {
-        guard challengeNonce != nil else { return }
+        guard let nonce = challengeNonce, let ts = challengeTs else {
+            print("Missing challenge nonce or timestamp")
+            return
+        }
 
-        // Simplified connect request - minimal required fields
+        let device = DeviceIdentity.shared
+        let signature = device.sign(nonce: nonce)
+
         var params: [String: Any] = [
             "minProtocol": 3,
             "maxProtocol": 3,
             "client": [
                 "id": "homeslice",
                 "version": "1.0.0",
-                "platform": "macos"
+                "platform": "macos",
+                "mode": "operator"
             ],
-            "role": "user",
-            "scopes": ["chat"],
+            "role": "operator",
+            "scopes": ["operator.read", "operator.write"],
             "caps": [],
+            "commands": [],
+            "permissions": [:] as [String: Any],
             "locale": "en-US",
-            "userAgent": "HomeSlice/1.0.0"
+            "userAgent": "HomeSlice/1.0.0",
+            "device": [
+                "id": device.deviceId,
+                "publicKey": device.publicKeyBase64,
+                "signature": signature,
+                "signedAt": ts,
+                "nonce": nonce
+            ] as [String: Any]
         ]
 
         // Add auth token if provided
