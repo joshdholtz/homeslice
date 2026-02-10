@@ -839,35 +839,108 @@ class AppDelegate: NSObject, NSApplicationDelegate {
     }
 
     func setupGlobalHotkey() {
-        // Register ⌘⇧C to open chat
-        let hotKeyID = EventHotKeyID(signature: OSType(0x484D5343), id: 1)  // "HMSC"
-        var hotKeyRef: EventHotKeyRef?
+        // Install event handler once
+        var eventType = EventTypeSpec(eventClass: OSType(kEventClassKeyboard),
+                                      eventKind: UInt32(kEventHotKeyPressed))
 
-        // Key codes: C = 8, modifiers: cmdKey = 256, shiftKey = 512
-        let modifiers: UInt32 = UInt32(cmdKey | shiftKey)
-        let keyCode: UInt32 = 8  // 'C' key
+        InstallEventHandler(GetApplicationEventTarget(), { (_, event, _) -> OSStatus in
+            DispatchQueue.main.async {
+                NotificationCenter.default.post(name: .showChatDialog, object: nil)
+            }
+            return noErr
+        }, 1, &eventType, nil, nil)
 
-        let status = RegisterEventHotKey(keyCode, modifiers, hotKeyID,
-                                          GetApplicationEventTarget(), 0, &hotKeyRef)
+        // Register the hotkey from stored settings (default: ⌘⇧C)
+        registerHotkey()
+    }
+
+    func registerHotkey() {
+        // Unregister existing hotkey if any
+        if let existingRef = hotKeyRef {
+            UnregisterEventHotKey(existingRef)
+            hotKeyRef = nil
+        }
+
+        // Get stored values or defaults (⌘⇧C)
+        let keyCode = UInt32(UserDefaults.standard.integer(forKey: "hotkeyKeyCode"))
+        let modifiers = UInt32(UserDefaults.standard.integer(forKey: "hotkeyModifiers"))
+
+        // Use defaults if not set
+        let finalKeyCode = keyCode > 0 ? keyCode : 8  // 'C' key
+        let finalModifiers = modifiers > 0 ? modifiers : UInt32(cmdKey | shiftKey)
+
+        let hotKeyID = EventHotKeyID(signature: OSType(0x484D5343), id: 1)
+        var newHotKeyRef: EventHotKeyRef?
+
+        let status = RegisterEventHotKey(finalKeyCode, finalModifiers, hotKeyID,
+                                          GetApplicationEventTarget(), 0, &newHotKeyRef)
 
         if status == noErr {
-            self.hotKeyRef = hotKeyRef
-            print(">>> Global hotkey ⌘⇧C registered")
-
-            // Install event handler
-            var eventType = EventTypeSpec(eventClass: OSType(kEventClassKeyboard),
-                                          eventKind: UInt32(kEventHotKeyPressed))
-
-            InstallEventHandler(GetApplicationEventTarget(), { (_, event, _) -> OSStatus in
-                // Trigger chat dialog on main thread
-                DispatchQueue.main.async {
-                    NotificationCenter.default.post(name: .showChatDialog, object: nil)
-                }
-                return noErr
-            }, 1, &eventType, nil, nil)
+            hotKeyRef = newHotKeyRef
+            print(">>> Global hotkey registered (keyCode: \(finalKeyCode), modifiers: \(finalModifiers))")
         } else {
             print(">>> Failed to register hotkey: \(status)")
         }
+    }
+
+    @objc func setHotkey() {
+        let alert = NSAlert()
+        alert.messageText = "Set Global Hotkey"
+        alert.informativeText = "Press the key combination you want to use to open chat.\n\nCurrent: \(currentHotkeyDescription())"
+        alert.alertStyle = .informational
+
+        // Create key recorder view
+        let recorder = HotkeyRecorderView(frame: NSRect(x: 0, y: 0, width: 200, height: 30))
+        recorder.onHotkeyRecorded = { [weak self] keyCode, modifiers in
+            UserDefaults.standard.set(Int(keyCode), forKey: "hotkeyKeyCode")
+            UserDefaults.standard.set(Int(modifiers), forKey: "hotkeyModifiers")
+            self?.registerHotkey()
+        }
+        alert.accessoryView = recorder
+
+        alert.addButton(withTitle: "Done")
+        alert.addButton(withTitle: "Reset to Default")
+
+        let response = alert.runModal()
+        if response == .alertSecondButtonReturn {
+            // Reset to default ⌘⇧C
+            UserDefaults.standard.removeObject(forKey: "hotkeyKeyCode")
+            UserDefaults.standard.removeObject(forKey: "hotkeyModifiers")
+            registerHotkey()
+        }
+    }
+
+    func currentHotkeyDescription() -> String {
+        let keyCode = UserDefaults.standard.integer(forKey: "hotkeyKeyCode")
+        let modifiers = UserDefaults.standard.integer(forKey: "hotkeyModifiers")
+
+        if keyCode == 0 && modifiers == 0 {
+            return "⌘⇧C"
+        }
+
+        var parts: [String] = []
+        if modifiers & controlKey != 0 { parts.append("⌃") }
+        if modifiers & optionKey != 0 { parts.append("⌥") }
+        if modifiers & shiftKey != 0 { parts.append("⇧") }
+        if modifiers & cmdKey != 0 { parts.append("⌘") }
+
+        let keyName = keyCodeToString(UInt16(keyCode))
+        parts.append(keyName)
+
+        return parts.joined()
+    }
+
+    func keyCodeToString(_ keyCode: UInt16) -> String {
+        let keyMap: [UInt16: String] = [
+            0: "A", 1: "S", 2: "D", 3: "F", 4: "H", 5: "G", 6: "Z", 7: "X", 8: "C", 9: "V",
+            11: "B", 12: "Q", 13: "W", 14: "E", 15: "R", 16: "Y", 17: "T", 18: "1", 19: "2",
+            20: "3", 21: "4", 22: "6", 23: "5", 24: "=", 25: "9", 26: "7", 27: "-", 28: "8",
+            29: "0", 31: "O", 32: "U", 34: "I", 35: "P", 37: "L", 38: "J", 40: "K", 45: "N",
+            46: "M", 49: "Space", 36: "↩", 48: "Tab", 51: "⌫", 53: "Esc",
+            122: "F1", 120: "F2", 99: "F3", 118: "F4", 96: "F5", 97: "F6", 98: "F7",
+            100: "F8", 101: "F9", 109: "F10", 103: "F11", 111: "F12"
+        ]
+        return keyMap[keyCode] ?? "?"
     }
 
     func setupMainMenu() {
@@ -1036,6 +1109,10 @@ class AppDelegate: NSObject, NSApplicationDelegate {
         let configItem = NSMenuItem(title: "Configure Bot URL...", action: #selector(configureBotURL), keyEquivalent: ",")
         configItem.target = self
         menu.addItem(configItem)
+
+        let hotkeyItem = NSMenuItem(title: "Set Hotkey...", action: #selector(setHotkey), keyEquivalent: "")
+        hotkeyItem.target = self
+        menu.addItem(hotkeyItem)
 
         menu.addItem(NSMenuItem.separator())
 
@@ -2462,6 +2539,90 @@ struct JacobBeardShape: Shape {
                    control2: CGPoint(x: w * 0.26, y: h * 0.04))
         p.closeSubpath()
         return p
+    }
+}
+
+// MARK: - Hotkey Recorder
+
+class HotkeyRecorderView: NSView {
+    var onHotkeyRecorded: ((UInt32, UInt32) -> Void)?
+    private var displayLabel: NSTextField!
+    private var recordedKeyCode: UInt32 = 0
+    private var recordedModifiers: UInt32 = 0
+
+    override init(frame frameRect: NSRect) {
+        super.init(frame: frameRect)
+        setup()
+    }
+
+    required init?(coder: NSCoder) {
+        super.init(coder: coder)
+        setup()
+    }
+
+    private func setup() {
+        displayLabel = NSTextField(frame: bounds)
+        displayLabel.isEditable = false
+        displayLabel.isSelectable = false
+        displayLabel.isBezeled = true
+        displayLabel.bezelStyle = .roundedBezel
+        displayLabel.alignment = .center
+        displayLabel.stringValue = "Click here, then press keys..."
+        displayLabel.font = NSFont.systemFont(ofSize: 13)
+        addSubview(displayLabel)
+    }
+
+    override var acceptsFirstResponder: Bool { true }
+
+    override func mouseDown(with event: NSEvent) {
+        window?.makeFirstResponder(self)
+        displayLabel.stringValue = "Press your hotkey..."
+    }
+
+    override func keyDown(with event: NSEvent) {
+        let modifiers = event.modifierFlags.intersection([.command, .option, .shift, .control])
+
+        // Require at least one modifier
+        guard !modifiers.isEmpty else {
+            displayLabel.stringValue = "Need ⌘, ⌥, ⌃, or ⇧"
+            return
+        }
+
+        recordedKeyCode = UInt32(event.keyCode)
+
+        // Convert to Carbon modifier flags
+        recordedModifiers = 0
+        if modifiers.contains(.command) { recordedModifiers |= UInt32(cmdKey) }
+        if modifiers.contains(.option) { recordedModifiers |= UInt32(optionKey) }
+        if modifiers.contains(.shift) { recordedModifiers |= UInt32(shiftKey) }
+        if modifiers.contains(.control) { recordedModifiers |= UInt32(controlKey) }
+
+        // Build display string
+        var parts: [String] = []
+        if modifiers.contains(.control) { parts.append("⌃") }
+        if modifiers.contains(.option) { parts.append("⌥") }
+        if modifiers.contains(.shift) { parts.append("⇧") }
+        if modifiers.contains(.command) { parts.append("⌘") }
+
+        let keyName = keyCodeToChar(event.keyCode)
+        parts.append(keyName)
+
+        displayLabel.stringValue = "Set to: " + parts.joined()
+
+        onHotkeyRecorded?(recordedKeyCode, recordedModifiers)
+    }
+
+    private func keyCodeToChar(_ keyCode: UInt16) -> String {
+        let keyMap: [UInt16: String] = [
+            0: "A", 1: "S", 2: "D", 3: "F", 4: "H", 5: "G", 6: "Z", 7: "X", 8: "C", 9: "V",
+            11: "B", 12: "Q", 13: "W", 14: "E", 15: "R", 16: "Y", 17: "T", 18: "1", 19: "2",
+            20: "3", 21: "4", 22: "6", 23: "5", 24: "=", 25: "9", 26: "7", 27: "-", 28: "8",
+            29: "0", 31: "O", 32: "U", 34: "I", 35: "P", 37: "L", 38: "J", 40: "K", 45: "N",
+            46: "M", 49: "Space", 36: "↩", 48: "Tab", 51: "⌫", 53: "Esc",
+            122: "F1", 120: "F2", 99: "F3", 118: "F4", 96: "F5", 97: "F6", 98: "F7",
+            100: "F8", 101: "F9", 109: "F10", 103: "F11", 111: "F12"
+        ]
+        return keyMap[keyCode] ?? "?"
     }
 }
 
