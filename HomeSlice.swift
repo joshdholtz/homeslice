@@ -116,11 +116,11 @@ class DeviceIdentity {
         return newKey
     }
 
-    // Device ID is SHA256 hash of public key (base64 encoded)
+    // Device ID is SHA256 hash of public key (64-char lowercase hex)
     var deviceId: String {
         let pubKeyData = Data(privateKey.publicKey.rawRepresentation)
         let hash = SHA256.hash(data: pubKeyData)
-        return Data(hash).base64EncodedString()
+        return hash.compactMap { String(format: "%02x", $0) }.joined()
     }
 
     var publicKeyBase64: String {
@@ -136,7 +136,11 @@ class DeviceIdentity {
             print("Failed to sign nonce")
             return ""
         }
-        let sig = Data(signature).base64EncodedString()
+        let sigData = Data(signature)
+        let sig = sigData.base64EncodedString()
+
+        // Sanity checks
+        print("Signature length: \(sigData.count) bytes (expected: 64)")
 
         // Verify signature locally before returning
         let isValid = privateKey.publicKey.isValidSignature(signature, for: nonceData)
@@ -145,10 +149,23 @@ class DeviceIdentity {
         return sig
     }
 
-    // Debug: print identity info
+    // Debug: print identity info with sanity checks
     func printDebugInfo() {
-        print("Device ID: \(deviceId)")
-        print("Public Key: \(publicKeyBase64)")
+        let id = deviceId
+        let pubKey = publicKeyBase64
+
+        print("=== Device Identity ===")
+        print("Device ID: \(id)")
+        print("  - Length: \(id.count) (expected: 64)")
+        print("  - Hex valid: \(id.range(of: "^[0-9a-f]{64}$", options: .regularExpression) != nil)")
+
+        print("Public Key: \(pubKey)")
+        if let decoded = Data(base64Encoded: pubKey) {
+            print("  - Decoded length: \(decoded.count) bytes (expected: 32)")
+        } else {
+            print("  - ERROR: Invalid base64")
+        }
+        print("=======================")
     }
 
     private func saveToKeychain(tag: String, data: Data) {
