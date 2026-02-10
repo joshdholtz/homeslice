@@ -169,7 +169,7 @@ class AppDelegate: NSObject, NSApplicationDelegate {
                 width: panelSize.width,
                 height: panelSize.height
             ),
-            styleMask: [.borderless, .nonactivatingPanel],
+            styleMask: [.borderless],
             backing: .buffered,
             defer: false
         )
@@ -182,6 +182,7 @@ class AppDelegate: NSObject, NSApplicationDelegate {
         panel.collectionBehavior = [.canJoinAllSpaces, .fullScreenAuxiliary]
         panel.isMovableByWindowBackground = true
         panel.hidesOnDeactivate = false
+        panel.becomesKeyOnlyIfNeeded = true  // Become key when text field needs input
 
         // Add SwiftUI content
         let hostingView = NSHostingView(rootView: KawaiiPizzaView().environmentObject(pizzaState))
