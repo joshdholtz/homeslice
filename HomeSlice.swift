@@ -2150,168 +2150,283 @@ struct KawaiiCatEar: Shape {
 }
 
 // MARK: - Kawaii Jacob
+// Adapted from ChatGPT design - scaled to fit 120x140 frame
 
 struct KawaiiJacob: View {
     let isBlinking: Bool
     let mood: PizzaMood
 
-    // Colors - matched to photo
-    let skinTone = Color(red: 0.95, green: 0.85, blue: 0.75)
-    let hairColor = Color(red: 0.5, green: 0.32, blue: 0.18)  // Auburn brown
-    let hairHighlight = Color(red: 0.6, green: 0.4, blue: 0.25)
-    let beardBrown = Color(red: 0.45, green: 0.32, blue: 0.22)
-    let beardGray = Color(red: 0.55, green: 0.5, blue: 0.45)
-    let capColor = Color(red: 0.9, green: 0.87, blue: 0.8)  // Beige
-    let cardiganColor = Color(red: 0.45, green: 0.45, blue: 0.47)  // Dark gray
-    let glassesFrame = Color(red: 0.6, green: 0.6, blue: 0.65)
-    let glassesLens = Color(red: 0.7, green: 0.75, blue: 0.85)
+    // Colors
+    let skinTone = Color(red: 0.97, green: 0.86, blue: 0.76)
+    let hairColor = Color(red: 0.25, green: 0.16, blue: 0.10)
+    let capColor = Color(red: 0.97, green: 0.94, blue: 0.90)
+    let cardiganColor = Color(red: 0.47, green: 0.47, blue: 0.50)
+    let beardDark = Color(red: 0.27, green: 0.20, blue: 0.15)
+    let beardLight = Color(red: 0.18, green: 0.14, blue: 0.11)
+    let rcPink = Color(red: 0.96, green: 0.42, blue: 0.55)
 
     var body: some View {
         ZStack {
-            // === LAYER 1: Body (cardigan + hoodie) ===
-            // Gray cardigan
-            RoundedRectangle(cornerRadius: 18)
+            // === CARDIGAN (gray, behind everything) ===
+            RoundedRectangle(cornerRadius: 16, style: .continuous)
                 .fill(cardiganColor)
-                .frame(width: 75, height: 50)
-                .offset(y: 58)
+                .frame(width: 85, height: 55)
+                .offset(y: 52)
 
-            // White hoodie V-neck showing
-            Path { path in
-                path.move(to: CGPoint(x: 0, y: 0))
-                path.addLine(to: CGPoint(x: 20, y: 35))
-                path.addLine(to: CGPoint(x: 40, y: 0))
-                path.closeSubpath()
-            }
-            .fill(Color.white)
-            .frame(width: 40, height: 35)
-            .offset(y: 48)
+            // === HOODIE (white) ===
+            RoundedRectangle(cornerRadius: 14, style: .continuous)
+                .fill(Color.white)
+                .frame(width: 70, height: 50)
+                .offset(y: 50)
+
+            // Hood opening
+            RoundedRectangle(cornerRadius: 12, style: .continuous)
+                .fill(Color.black.opacity(0.05))
+                .frame(width: 50, height: 28)
+                .offset(y: 38)
 
             // Hoodie strings
-            Path { path in
-                path.move(to: CGPoint(x: 8, y: 0))
-                path.addLine(to: CGPoint(x: 6, y: 18))
-                path.move(to: CGPoint(x: 22, y: 0))
-                path.addLine(to: CGPoint(x: 24, y: 18))
-            }
-            .stroke(Color.gray.opacity(0.4), lineWidth: 1.5)
-            .frame(width: 30, height: 18)
-            .offset(y: 52)
-
-            // === LAYER 2: Hair behind head ===
-            // Left hair flowing down
-            Ellipse()
-                .fill(
-                    LinearGradient(colors: [hairHighlight, hairColor],
-                                   startPoint: .top, endPoint: .bottom)
-                )
-                .frame(width: 35, height: 75)
-                .rotationEffect(.degrees(15))
-                .offset(x: -38, y: 15)
-
-            // Right hair flowing down
-            Ellipse()
-                .fill(
-                    LinearGradient(colors: [hairHighlight, hairColor],
-                                   startPoint: .top, endPoint: .bottom)
-                )
-                .frame(width: 35, height: 75)
-                .rotationEffect(.degrees(-15))
-                .offset(x: 38, y: 15)
-
-            // === LAYER 3: Face ===
-            Circle()
-                .fill(skinTone)
-                .frame(width: 55, height: 55)
-                .offset(y: -8)
-
-            // === LAYER 4: THE MAGNIFICENT BEARD ===
-            // Main beard mass - gray with white/light center
-            Ellipse()
-                .fill(
-                    RadialGradient(
-                        colors: [Color(red: 0.85, green: 0.82, blue: 0.78), Color(red: 0.5, green: 0.48, blue: 0.45)],
-                        center: .center,
-                        startRadius: 5,
-                        endRadius: 40
-                    )
-                )
-                .frame(width: 70, height: 55)
-                .offset(y: 25)
-
-            // Beard texture - fluffy waves at bottom (grays)
-            HStack(spacing: 2) {
-                ForEach(0..<5, id: \.self) { i in
-                    Ellipse()
-                        .fill(i % 2 == 0 ? Color(red: 0.55, green: 0.52, blue: 0.48) : Color(red: 0.7, green: 0.68, blue: 0.65))
-                        .frame(width: 14, height: 18)
-                }
+            HStack(spacing: 8) {
+                Capsule().fill(Color.black.opacity(0.12)).frame(width: 2, height: 18)
+                Capsule().fill(Color.black.opacity(0.12)).frame(width: 2, height: 18)
             }
             .offset(y: 48)
 
-            // Mustache - brownish gray
-            Ellipse()
-                .fill(Color(red: 0.5, green: 0.45, blue: 0.4))
-                .frame(width: 35, height: 12)
-                .offset(y: 8)
-
-            // === LAYER 5: Cap ===
-            // Cap dome
-            Ellipse()
-                .fill(capColor)
-                .frame(width: 65, height: 35)
-                .offset(y: -32)
-
-            // Cap brim - curved
-            Ellipse()
-                .fill(capColor)
-                .frame(width: 60, height: 14)
-                .shadow(color: .black.opacity(0.1), radius: 1, y: 1)
-                .offset(y: -18)
-
-            // RC logo on cap
+            // RC on hoodie
             Text("RC")
-                .font(.system(size: 10, weight: .heavy))
-                .foregroundColor(Color(red: 0.9, green: 0.4, blue: 0.5))
-                .offset(y: -35)
+                .font(.system(size: 9, weight: .heavy, design: .rounded))
+                .foregroundColor(rcPink)
+                .offset(x: 20, y: 58)
 
-            // === LAYER 6: Sunglasses (the iconic look) ===
-            // Left lens
-            Circle()
+            // === HAIR BACK ===
+            JacobHairBlob()
+                .fill(hairColor)
+                .frame(width: 80, height: 65)
+                .offset(y: -5)
+
+            // Hair strands left
+            JacobHairStrand()
+                .fill(Color(red: 0.27, green: 0.17, blue: 0.11))
+                .frame(width: 22, height: 40)
+                .offset(x: -28, y: 12)
+
+            // Hair strands right
+            JacobHairStrand()
+                .fill(Color(red: 0.27, green: 0.17, blue: 0.11))
+                .frame(width: 22, height: 40)
+                .scaleEffect(x: -1, y: 1)
+                .offset(x: 28, y: 12)
+
+            // === FACE ===
+            RoundedRectangle(cornerRadius: 28, style: .continuous)
                 .fill(
-                    LinearGradient(colors: [glassesLens, glassesLens.opacity(0.7)],
-                                   startPoint: .topLeading, endPoint: .bottomTrailing)
+                    LinearGradient(
+                        colors: [skinTone, Color(red: 0.95, green: 0.82, blue: 0.72)],
+                        startPoint: .top, endPoint: .bottom
+                    )
                 )
-                .frame(width: 26, height: 26)
-                .overlay(Circle().stroke(glassesFrame, lineWidth: 2.5))
-                .offset(x: -15, y: -10)
+                .frame(width: 62, height: 55)
+                .offset(y: -5)
 
-            // Right lens
-            Circle()
+            // Blush
+            HStack(spacing: 30) {
+                Circle().fill(Color.pink.opacity(0.22)).frame(width: 10, height: 8)
+                Circle().fill(Color.pink.opacity(0.22)).frame(width: 10, height: 8)
+            }
+            .offset(y: 2)
+
+            // === BEARD (the magnificent one) ===
+            JacobBeardShape()
                 .fill(
-                    LinearGradient(colors: [glassesLens, glassesLens.opacity(0.7)],
-                                   startPoint: .topLeading, endPoint: .bottomTrailing)
+                    LinearGradient(
+                        colors: [beardDark, beardLight],
+                        startPoint: .top, endPoint: .bottom
+                    )
                 )
-                .frame(width: 26, height: 26)
-                .overlay(Circle().stroke(glassesFrame, lineWidth: 2.5))
-                .offset(x: 15, y: -10)
+                .frame(width: 68, height: 50)
+                .offset(y: 32)
 
-            // Bridge
-            Rectangle()
-                .fill(glassesFrame)
-                .frame(width: 6, height: 3)
-                .offset(y: -10)
+            // Gray patches in beard
+            Circle().fill(Color.white.opacity(0.45)).frame(width: 14, height: 11).blur(radius: 2).offset(x: -16, y: 22)
+            Circle().fill(Color.white.opacity(0.38)).frame(width: 12, height: 10).blur(radius: 2).offset(x: 18, y: 20)
+            Circle().fill(Color.white.opacity(0.30)).frame(width: 10, height: 8).blur(radius: 2).offset(x: 2, y: 30)
 
-            // Lens shine/reflection
-            Circle()
-                .fill(Color.white.opacity(0.4))
-                .frame(width: 8, height: 8)
-                .offset(x: -20, y: -14)
-            Circle()
-                .fill(Color.white.opacity(0.4))
-                .frame(width: 8, height: 8)
-                .offset(x: 10, y: -14)
+            // === HAT ===
+            // Cap crown
+            RoundedRectangle(cornerRadius: 14, style: .continuous)
+                .fill(capColor)
+                .frame(width: 68, height: 38)
+                .offset(y: -38)
+
+            // Cap seams
+            Path { p in
+                p.move(to: CGPoint(x: 34, y: 6))
+                p.addQuadCurve(to: CGPoint(x: 16, y: 34), control: CGPoint(x: 22, y: 16))
+                p.move(to: CGPoint(x: 34, y: 6))
+                p.addQuadCurve(to: CGPoint(x: 52, y: 34), control: CGPoint(x: 46, y: 16))
+            }
+            .stroke(Color.black.opacity(0.08), lineWidth: 1)
+            .frame(width: 68, height: 38)
+            .offset(y: -38)
+
+            // Cap brim
+            Capsule()
+                .fill(Color(red: 0.95, green: 0.92, blue: 0.88))
+                .frame(width: 68, height: 14)
+                .offset(y: -20)
+
+            // RC patch on cap
+            RoundedRectangle(cornerRadius: 4, style: .continuous)
+                .fill(rcPink)
+                .frame(width: 20, height: 14)
+                .overlay(
+                    Text("RC")
+                        .font(.system(size: 7, weight: .heavy, design: .rounded))
+                        .foregroundColor(.white)
+                )
+                .offset(y: -40)
+
+            // === GLASSES ===
+            JacobGlasses()
+                .offset(y: -8)
         }
         .frame(width: 120, height: 140)
+    }
+}
+
+// Jacob's glasses with pupils and shine
+struct JacobGlasses: View {
+    var body: some View {
+        ZStack {
+            HStack(spacing: 6) {
+                JacobLens()
+                JacobLens()
+            }
+            // Bridge
+            Capsule()
+                .fill(Color.black.opacity(0.45))
+                .frame(width: 10, height: 3)
+        }
+    }
+}
+
+struct JacobLens: View {
+    var body: some View {
+        ZStack {
+            // Lens
+            Circle()
+                .fill(
+                    RadialGradient(
+                        colors: [
+                            Color(red: 0.15, green: 0.12, blue: 0.18).opacity(0.85),
+                            Color(red: 0.02, green: 0.02, blue: 0.03).opacity(0.95)
+                        ],
+                        center: .center,
+                        startRadius: 2,
+                        endRadius: 16
+                    )
+                )
+                .frame(width: 30, height: 30)
+                .overlay(Circle().stroke(Color.black.opacity(0.55), lineWidth: 2))
+
+            // Pupil
+            Circle()
+                .fill(Color.black.opacity(0.85))
+                .frame(width: 12, height: 12)
+
+            // Shine
+            Circle()
+                .fill(Color.white.opacity(0.8))
+                .frame(width: 5, height: 5)
+                .offset(x: -4, y: -4)
+        }
+    }
+}
+
+// Hair blob shape
+struct JacobHairBlob: Shape {
+    func path(in rect: CGRect) -> Path {
+        var p = Path()
+        let w = rect.width
+        let h = rect.height
+
+        p.move(to: CGPoint(x: w * 0.18, y: h * 0.35))
+        p.addCurve(to: CGPoint(x: w * 0.28, y: h * 0.90),
+                   control1: CGPoint(x: w * 0.02, y: h * 0.55),
+                   control2: CGPoint(x: w * 0.10, y: h * 0.95))
+        p.addCurve(to: CGPoint(x: w * 0.72, y: h * 0.90),
+                   control1: CGPoint(x: w * 0.40, y: h * 0.86),
+                   control2: CGPoint(x: w * 0.58, y: h * 1.02))
+        p.addCurve(to: CGPoint(x: w * 0.82, y: h * 0.35),
+                   control1: CGPoint(x: w * 0.90, y: h * 0.95),
+                   control2: CGPoint(x: w * 0.98, y: h * 0.55))
+        p.addCurve(to: CGPoint(x: w * 0.50, y: h * 0.08),
+                   control1: CGPoint(x: w * 0.78, y: h * 0.18),
+                   control2: CGPoint(x: w * 0.62, y: h * 0.06))
+        p.addCurve(to: CGPoint(x: w * 0.18, y: h * 0.35),
+                   control1: CGPoint(x: w * 0.38, y: h * 0.10),
+                   control2: CGPoint(x: w * 0.22, y: h * 0.18))
+        p.closeSubpath()
+        return p
+    }
+}
+
+// Hair strand shape
+struct JacobHairStrand: Shape {
+    func path(in rect: CGRect) -> Path {
+        var p = Path()
+        let w = rect.width
+        let h = rect.height
+
+        p.move(to: CGPoint(x: w * 0.40, y: 0))
+        p.addCurve(to: CGPoint(x: w * 0.18, y: h * 0.95),
+                   control1: CGPoint(x: w * 0.05, y: h * 0.25),
+                   control2: CGPoint(x: w * 0.02, y: h * 0.85))
+        p.addCurve(to: CGPoint(x: w * 0.70, y: h * 0.78),
+                   control1: CGPoint(x: w * 0.35, y: h * 1.02),
+                   control2: CGPoint(x: w * 0.55, y: h * 0.95))
+        p.addCurve(to: CGPoint(x: w * 0.40, y: 0),
+                   control1: CGPoint(x: w * 0.92, y: h * 0.60),
+                   control2: CGPoint(x: w * 0.88, y: h * 0.16))
+        p.closeSubpath()
+        return p
+    }
+}
+
+// Beard shape
+struct JacobBeardShape: Shape {
+    func path(in rect: CGRect) -> Path {
+        var p = Path()
+        let w = rect.width
+        let h = rect.height
+
+        p.move(to: CGPoint(x: w * 0.18, y: h * 0.18))
+        p.addCurve(to: CGPoint(x: w * 0.08, y: h * 0.58),
+                   control1: CGPoint(x: w * 0.06, y: h * 0.24),
+                   control2: CGPoint(x: w * 0.02, y: h * 0.44))
+        p.addCurve(to: CGPoint(x: w * 0.28, y: h * 0.92),
+                   control1: CGPoint(x: w * 0.12, y: h * 0.80),
+                   control2: CGPoint(x: w * 0.18, y: h * 0.94))
+        p.addCurve(to: CGPoint(x: w * 0.50, y: h * 0.98),
+                   control1: CGPoint(x: w * 0.35, y: h * 0.98),
+                   control2: CGPoint(x: w * 0.44, y: h * 1.02))
+        p.addCurve(to: CGPoint(x: w * 0.72, y: h * 0.92),
+                   control1: CGPoint(x: w * 0.56, y: h * 1.02),
+                   control2: CGPoint(x: w * 0.65, y: h * 0.98))
+        p.addCurve(to: CGPoint(x: w * 0.92, y: h * 0.58),
+                   control1: CGPoint(x: w * 0.82, y: h * 0.94),
+                   control2: CGPoint(x: w * 0.88, y: h * 0.80))
+        p.addCurve(to: CGPoint(x: w * 0.82, y: h * 0.18),
+                   control1: CGPoint(x: w * 0.98, y: h * 0.44),
+                   control2: CGPoint(x: w * 0.94, y: h * 0.24))
+        p.addCurve(to: CGPoint(x: w * 0.50, y: h * 0.06),
+                   control1: CGPoint(x: w * 0.74, y: h * 0.04),
+                   control2: CGPoint(x: w * 0.60, y: h * 0.02))
+        p.addCurve(to: CGPoint(x: w * 0.18, y: h * 0.18),
+                   control1: CGPoint(x: w * 0.40, y: h * 0.02),
+                   control2: CGPoint(x: w * 0.26, y: h * 0.04))
+        p.closeSubpath()
+        return p
     }
 }
 
