@@ -653,33 +653,29 @@ class GatewayClient {
             print("[Cron] action=\(action) session=\(sessionKey)")
 
         case "chat":
-            // Only handle notification sessions here (main session and Telegram alerts)
+            // Handle notification sessions: main session, Telegram alerts, and cron jobs
             // Pizza sessions are handled in "agent" case to avoid duplicate responses
             let sessionKey = payload["sessionKey"] as? String ?? ""
             let isMainSession = sessionKey.hasPrefix("session:main:") || sessionKey.hasPrefix("agent:main:session:main:")
             let isTelegramAlerts = sessionKey.contains("telegram:group:-1003723640588")
-            let isNotificationSession = isMainSession || isTelegramAlerts
-
-            // Debug: log Telegram chat events
-            if isTelegramAlerts {
-                print("[Telegram chat] state=\(payload["state"] ?? "nil")")
-            }
+            let isCronSession = sessionKey.hasPrefix("agent:main:cron:")
+            let isNotificationSession = isMainSession || isTelegramAlerts || isCronSession
 
             guard isNotificationSession else {
                 return
             }
 
-            // Extract assistant message content - capture all Telegram messages
+            // Extract assistant message content
             if let message = payload["message"] as? [String: Any],
                let role = message["role"] as? String, role == "assistant",
                let content = message["content"] as? [[String: Any]] {
                 for block in content {
                     if let type = block["type"] as? String, type == "text",
                        let text = block["text"] as? String {
-                        // For Telegram, capture all messages; for main session, only bells
-                        if isTelegramAlerts || text.hasPrefix("🔔") {
+                        // Capture cron/telegram messages, or bells from main session
+                        if isCronSession || isTelegramAlerts || text.hasPrefix("🔔") {
                             responseBuffer = text
-                            print("[Telegram chat] captured: \(text.prefix(50))...")
+                            print("[Notification chat] captured: \(text.prefix(50))...")
                         }
                     }
                 }
@@ -687,26 +683,20 @@ class GatewayClient {
             // Check for completion (state: "final")
             if let state = payload["state"] as? String, state == "final" {
                 if !responseBuffer.isEmpty {
-                    print("[Telegram chat] delivering: \(responseBuffer.prefix(50))...")
+                    print("[Notification chat] delivering: \(responseBuffer.prefix(50))...")
                     showActivityNudge(responseBuffer)
                     responseBuffer = ""
                 }
             }
 
         case "agent":
-            // Process pizza sessions OR notification sessions (main, telegram alerts)
+            // Process pizza sessions OR notification sessions (main, telegram, cron)
             let sessionKey = payload["sessionKey"] as? String ?? ""
             let isPizzaSession = sessionKey.hasPrefix("agent:main:app:pizza:")
             let isMainSession = sessionKey.hasPrefix("agent:main:session:main:")
             let isTelegramAlerts = sessionKey.contains("telegram:group:-1003723640588")
-            let isNotificationSession = isMainSession || isTelegramAlerts
-
-            // Debug: log Telegram agent events
-            if isTelegramAlerts {
-                let stream = payload["stream"] as? String ?? "nil"
-                let phase = (payload["data"] as? [String: Any])?["phase"] as? String ?? "nil"
-                print("[Telegram agent] stream=\(stream) phase=\(phase)")
-            }
+            let isCronSession = sessionKey.hasPrefix("agent:main:cron:")
+            let isNotificationSession = isMainSession || isTelegramAlerts || isCronSession
 
             guard isPizzaSession || isNotificationSession else {
                 return
@@ -716,11 +706,11 @@ class GatewayClient {
             if let stream = payload["stream"] as? String, stream == "assistant",
                let data = payload["data"] as? [String: Any],
                let text = data["text"] as? String {
-                // For Telegram, capture all messages; for main session, only bells; for pizza, all
-                if isTelegramAlerts || !isNotificationSession {
+                // Capture cron/telegram/pizza messages, or bells from main session
+                if isCronSession || isTelegramAlerts || !isNotificationSession {
                     responseBuffer = text
-                    if isTelegramAlerts {
-                        print("[Telegram agent] captured: \(text.prefix(50))...")
+                    if isCronSession {
+                        print("[Cron agent] captured: \(text.prefix(50))...")
                     }
                 } else if text.hasPrefix("🔔") {
                     responseBuffer = text
@@ -730,13 +720,9 @@ class GatewayClient {
             // Check for run completion
             if let data = payload["data"] as? [String: Any],
                let phase = data["phase"] as? String, phase == "end" {
-                print("[Agent] ended, delivering response")
-
                 if isNotificationSession {
                     if !responseBuffer.isEmpty {
-                        if isTelegramAlerts {
-                            print("[Telegram agent] delivering: \(responseBuffer.prefix(50))...")
-                        }
+                        print("[Notification agent] delivering: \(responseBuffer.prefix(50))...")
                         showActivityNudge(responseBuffer)
                         responseBuffer = ""
                     }
