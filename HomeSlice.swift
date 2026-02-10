@@ -56,15 +56,24 @@ class PizzaState: ObservableObject {
         mood = .excited
 
         GatewayClient.shared.send(message: message, to: botURL, token: botToken) { [weak self] response in
+            print(">>> Completion handler called with response: \(response?.prefix(30) ?? "nil")")
             DispatchQueue.main.async {
+                print(">>> On main thread, setting state...")
                 self?.isThinking = false
                 if let response = response {
-                    self?.botResponse = response
+                    // Truncate very long responses to prevent UI issues
+                    let truncated = String(response.prefix(500))
+                    print(">>> Setting botResponse (len=\(truncated.count))")
+                    self?.botResponse = truncated
+                    print(">>> Setting showResponse = true")
                     self?.showResponse = true
+                    print(">>> Setting mood = happy")
                     self?.mood = .happy
+                    print(">>> State update complete!")
 
-                    // Hide response after 10 seconds (real responses may be longer)
+                    // Hide response after 10 seconds
                     DispatchQueue.main.asyncAfter(deadline: .now() + 10) {
+                        print(">>> Hiding response after timeout")
                         self?.showResponse = false
                         self?.botResponse = ""
                     }
@@ -1365,6 +1374,7 @@ struct ResponseBubble: View {
     let message: String
 
     var body: some View {
+        let _ = print(">>> ResponseBubble rendering: \(message.prefix(30))...")
         Text(message)
             .font(.system(size: 11))
             .foregroundColor(.primary)
