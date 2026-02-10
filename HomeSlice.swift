@@ -1418,8 +1418,8 @@ struct ThinkingBubble: View {
         .padding(10)
         .background(
             RoundedRectangle(cornerRadius: 12)
-                .fill(.white)
-                .shadow(radius: 3)
+                .fill(Color.white)
+                .shadow(color: .black.opacity(0.2), radius: 3)
         )
         .onAppear {
             Timer.scheduledTimer(withTimeInterval: 0.3, repeats: true) { _ in
@@ -1436,13 +1436,13 @@ struct ResponseBubble: View {
         let _ = print(">>> ResponseBubble rendering: \(message.prefix(30))...")
         Text(message)
             .font(.system(size: 11))
-            .foregroundColor(.primary)
+            .foregroundColor(.black)
             .padding(10)
             .frame(maxWidth: 180)
             .background(
                 RoundedRectangle(cornerRadius: 12)
-                    .fill(.white)
-                    .shadow(radius: 3)
+                    .fill(Color.white)
+                    .shadow(color: .black.opacity(0.2), radius: 3)
             )
             .fixedSize(horizontal: false, vertical: true)
     }
