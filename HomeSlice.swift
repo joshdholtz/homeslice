@@ -14,6 +14,11 @@ enum PizzaMood: String, CaseIterable {
     case surprised = "Surprised"
 }
 
+enum CompanionType: String, CaseIterable {
+    case pizza = "Pizza"
+    case cat = "Cat"
+}
+
 // Single struct for chat display state - enables atomic updates
 struct ChatDisplayState: Equatable {
     var isThinking: Bool = false
@@ -36,6 +41,7 @@ class PizzaState: ObservableObject {
     @Published var isVisible: Bool = true
     @Published var showParticles: Bool = false
     @Published var particleType: ParticleType = .hearts
+    @Published var companionType: CompanionType = .pizza
 
     // Chat state - single published property for atomic updates
     @Published var showChatInput: Bool = false
@@ -861,6 +867,20 @@ class AppDelegate: NSObject, NSApplicationDelegate {
 
         let menu = NSMenu()
 
+        // Character submenu
+        let characterMenuItem = NSMenuItem(title: "Character", action: nil, keyEquivalent: "")
+        let characterSubmenu = NSMenu()
+
+        for companion in CompanionType.allCases {
+            let item = NSMenuItem(title: companion.rawValue, action: #selector(changeCharacter(_:)), keyEquivalent: "")
+            item.target = self
+            item.representedObject = companion
+            characterSubmenu.addItem(item)
+        }
+
+        characterMenuItem.submenu = characterSubmenu
+        menu.addItem(characterMenuItem)
+
         // Mood submenu
         let moodMenuItem = NSMenuItem(title: "Mood", action: nil, keyEquivalent: "")
         let moodSubmenu = NSMenu()
@@ -1022,6 +1042,12 @@ class AppDelegate: NSObject, NSApplicationDelegate {
         if alert.runModal() == .alertFirstButtonReturn {
             pizzaState.botURL = urlInput.stringValue
             pizzaState.botToken = tokenInput.stringValue
+        }
+    }
+
+    @objc func changeCharacter(_ sender: NSMenuItem) {
+        if let companion = sender.representedObject as? CompanionType {
+            pizzaState.companionType = companion
         }
     }
 
@@ -1374,14 +1400,19 @@ struct KawaiiPizzaView: View {
             }
 
             ZStack {
-                // Pizza body
+                // Character body - pizza or cat
                 ZStack {
-                    PizzaSlice()
-                        .scaleEffect(breatheScale)
+                    if pizzaState.companionType == .pizza {
+                        PizzaSlice()
+                            .scaleEffect(breatheScale)
 
-                    KawaiiFace(isBlinking: isBlinking, mood: pizzaState.mood)
-                        .offset(y: 15)
-                        .scaleEffect(breatheScale)
+                        KawaiiFace(isBlinking: isBlinking, mood: pizzaState.mood)
+                            .offset(y: 15)
+                            .scaleEffect(breatheScale)
+                    } else {
+                        KawaiiCat(isBlinking: isBlinking, mood: pizzaState.mood)
+                            .scaleEffect(breatheScale)
+                    }
                 }
                 .rotationEffect(.degrees(wiggleAngle + spinAngle))
 
@@ -1858,6 +1889,125 @@ struct ResponseBubble: View {
                 .fill(Color.white)
                 .shadow(color: .black.opacity(0.25), radius: 4)
         )
+    }
+}
+
+// MARK: - Kawaii Cat
+
+struct KawaiiCat: View {
+    let isBlinking: Bool
+    let mood: PizzaMood
+
+    var body: some View {
+        ZStack {
+            // Body
+            Ellipse()
+                .fill(
+                    LinearGradient(
+                        colors: [Color.orange.opacity(0.9), Color.orange.opacity(0.7)],
+                        startPoint: .top,
+                        endPoint: .bottom
+                    )
+                )
+                .frame(width: 100, height: 80)
+                .offset(y: 30)
+
+            // Head
+            Circle()
+                .fill(
+                    LinearGradient(
+                        colors: [Color.orange.opacity(0.95), Color.orange.opacity(0.75)],
+                        startPoint: .top,
+                        endPoint: .bottom
+                    )
+                )
+                .frame(width: 90, height: 90)
+
+            // Left ear
+            CatEar()
+                .fill(Color.orange.opacity(0.9))
+                .frame(width: 30, height: 35)
+                .offset(x: -30, y: -40)
+
+            // Left ear inner
+            CatEar()
+                .fill(Color.pink.opacity(0.4))
+                .frame(width: 15, height: 18)
+                .offset(x: -30, y: -35)
+
+            // Right ear
+            CatEar()
+                .fill(Color.orange.opacity(0.9))
+                .frame(width: 30, height: 35)
+                .offset(x: 30, y: -40)
+
+            // Right ear inner
+            CatEar()
+                .fill(Color.pink.opacity(0.4))
+                .frame(width: 15, height: 18)
+                .offset(x: 30, y: -35)
+
+            // Face
+            KawaiiFace(isBlinking: isBlinking, mood: mood)
+                .offset(y: 5)
+
+            // Whiskers left
+            WhiskerGroup()
+                .offset(x: -35, y: 15)
+
+            // Whiskers right
+            WhiskerGroup()
+                .scaleEffect(x: -1, y: 1)
+                .offset(x: 35, y: 15)
+
+            // Tail
+            CatTail()
+                .stroke(Color.orange.opacity(0.8), lineWidth: 12)
+                .frame(width: 40, height: 50)
+                .offset(x: 50, y: 50)
+        }
+        .frame(width: 120, height: 140)
+    }
+}
+
+struct CatEar: Shape {
+    func path(in rect: CGRect) -> Path {
+        var path = Path()
+        path.move(to: CGPoint(x: rect.midX, y: 0))
+        path.addLine(to: CGPoint(x: 0, y: rect.height))
+        path.addLine(to: CGPoint(x: rect.width, y: rect.height))
+        path.closeSubpath()
+        return path
+    }
+}
+
+struct WhiskerGroup: View {
+    var body: some View {
+        VStack(spacing: 4) {
+            Whisker().rotationEffect(.degrees(-10))
+            Whisker()
+            Whisker().rotationEffect(.degrees(10))
+        }
+    }
+}
+
+struct Whisker: View {
+    var body: some View {
+        Rectangle()
+            .fill(Color.gray.opacity(0.5))
+            .frame(width: 25, height: 2)
+    }
+}
+
+struct CatTail: Shape {
+    func path(in rect: CGRect) -> Path {
+        var path = Path()
+        path.move(to: CGPoint(x: 0, y: rect.height))
+        path.addQuadCurve(
+            to: CGPoint(x: rect.width, y: 0),
+            control: CGPoint(x: rect.width * 0.8, y: rect.height * 0.8)
+        )
+        return path
     }
 }
 
