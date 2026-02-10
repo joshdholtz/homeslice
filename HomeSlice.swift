@@ -229,24 +229,25 @@ struct KawaiiPizzaView: View {
             }
 
             ZStack {
-                // Main pizza slice
-                PizzaSlice()
-                    .scaleEffect(breatheScale)
+                // Pizza body (in drawingGroup to prevent white flash)
+                ZStack {
+                    PizzaSlice()
+                        .scaleEffect(breatheScale)
 
-                // Kawaii face
-                KawaiiFace(isBlinking: isBlinking, mood: pizzaState.mood)
-                    .offset(y: 15)
-                    .scaleEffect(breatheScale)
+                    KawaiiFace(isBlinking: isBlinking, mood: pizzaState.mood)
+                        .offset(y: 15)
+                        .scaleEffect(breatheScale)
+                }
+                .drawingGroup()
+                .rotationEffect(.degrees(wiggleAngle + spinAngle))
 
-                // Speech bubble for mood (overlaid, not in VStack)
+                // Speech bubble outside drawingGroup so it doesn't clip
                 if pizzaState.mood != .happy {
                     SpeechBubble(mood: pizzaState.mood)
                         .offset(x: 50, y: -50)
                         .transition(.scale.combined(with: .opacity))
                 }
             }
-            .drawingGroup() // Render as bitmap to prevent white flash during rotation
-            .rotationEffect(.degrees(wiggleAngle + spinAngle))
             .offset(x: danceOffset, y: bobOffset + jumpOffset)
             .shadow(color: .black.opacity(0.3), radius: 8, x: 0, y: 4)
             .onTapGesture {
