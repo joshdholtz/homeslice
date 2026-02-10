@@ -247,18 +247,10 @@ struct KawaiiPizzaView: View {
                         .transition(.scale.combined(with: .opacity))
                 }
             }
-            .background(
-                // Shadow completely outside the pizza view hierarchy
-                PizzaShadow()
-                    .scaleEffect(breatheScale)
-                    .rotationEffect(.degrees(wiggleAngle + spinAngle))
-                    .offset(y: 10)
-            )
             .offset(x: danceOffset, y: bobOffset + jumpOffset)
             .onTapGesture {
                 handleTap()
             }
-            .background(Color.clear)
             .contextMenu {
                 Button("Happy") { pizzaState.mood = .happy }
                 Button("Excited") { pizzaState.mood = .excited }
