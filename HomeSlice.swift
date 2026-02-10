@@ -2,6 +2,7 @@ import AppKit
 import SwiftUI
 import Combine
 import CryptoKit
+import Security
 import Carbon.HIToolbox
 
 // MARK: - Pizza State
@@ -86,8 +87,12 @@ class PizzaState: ObservableObject {
         self.botToken = UserDefaults.standard.string(forKey: "botToken") ?? ""
         setupAppMonitoring()
 
-        // Fetch recent history from server on startup
-        DispatchQueue.main.asyncAfter(deadline: .now() + 1) { [weak self] in
+        // Fetch recent history from server on startup (after identity is initialized)
+        DispatchQueue.main.asyncAfter(deadline: .now() + 2) { [weak self] in
+            guard DeviceIdentity.shared.isInitialized else {
+                print("[History] Waiting for device identity...")
+                return
+            }
             self?.fetchHistory()
         }
     }
@@ -396,33 +401,63 @@ enum ParticleType {
     case stars
 }
 
-// MARK: - Device Identity (Ed25519 keypair in UserDefaults)
+// MARK: - Device Identity (Ed25519 keypair in Keychain)
 
 class DeviceIdentity {
     static let shared = DeviceIdentity()
 
-    private let privateKeyKey = "homeslice.device.privateKey"
+    private let privateKeyTag = "homeslice.device.privateKey"
     private var _privateKey: Curve25519.Signing.PrivateKey?
+    private var _isInitialized = false
+
+    /// Call this at app startup to trigger Keychain prompt before any network calls
+    func initialize() {
+        guard !_isInitialized else { return }
+        _isInitialized = true
+        _ = privateKey  // Triggers Keychain access
+        print("Device identity initialized: \(deviceId.prefix(16))...")
+    }
+
+    var isInitialized: Bool { _isInitialized }
 
     var privateKey: Curve25519.Signing.PrivateKey {
         if let key = _privateKey { return key }
 
-        // Try to load from UserDefaults
-        if let base64 = UserDefaults.standard.string(forKey: privateKeyKey),
-           let keyData = Data(base64Encoded: base64),
+        // Try to load from Keychain
+        if let keyData = loadFromKeychain(tag: privateKeyTag),
            let key = try? Curve25519.Signing.PrivateKey(rawRepresentation: keyData) {
             _privateKey = key
-            print("Loaded existing keypair")
+            print("Loaded existing keypair from Keychain")
             return key
         }
 
         // Generate new key and store it
         let newKey = Curve25519.Signing.PrivateKey()
-        let base64 = newKey.rawRepresentation.base64EncodedString()
-        UserDefaults.standard.set(base64, forKey: privateKeyKey)
+        saveToKeychain(tag: privateKeyTag, data: newKey.rawRepresentation)
         _privateKey = newKey
-        print("Generated new keypair")
+        print("Generated new keypair and saved to Keychain")
         return newKey
+    }
+
+    private func saveToKeychain(tag: String, data: Data) {
+        let query: [String: Any] = [
+            kSecClass as String: kSecClassGenericPassword,
+            kSecAttrAccount as String: tag,
+            kSecValueData as String: data
+        ]
+        SecItemDelete(query as CFDictionary)
+        SecItemAdd(query as CFDictionary, nil)
+    }
+
+    private func loadFromKeychain(tag: String) -> Data? {
+        let query: [String: Any] = [
+            kSecClass as String: kSecClassGenericPassword,
+            kSecAttrAccount as String: tag,
+            kSecReturnData as String: true
+        ]
+        var result: AnyObject?
+        let status = SecItemCopyMatching(query as CFDictionary, &result)
+        return status == errSecSuccess ? result as? Data : nil
     }
 
     // Device ID is SHA256 hash of public key (64-char lowercase hex)
@@ -498,8 +533,13 @@ class DeviceIdentity {
 
     // Reset identity (for debugging - generates fresh keypair)
     func resetIdentity() {
-        UserDefaults.standard.removeObject(forKey: privateKeyKey)
+        let query: [String: Any] = [
+            kSecClass as String: kSecClassGenericPassword,
+            kSecAttrAccount as String: privateKeyTag
+        ]
+        SecItemDelete(query as CFDictionary)
         _privateKey = nil
+        _isInitialized = false
         print("Identity reset - will generate new keypair on next access")
     }
 }
@@ -907,6 +947,9 @@ class AppDelegate: NSObject, NSApplicationDelegate {
     var hotKeyRef: EventHotKeyRef?
 
     func applicationDidFinishLaunching(_ notification: Notification) {
+        // Initialize device identity first - triggers Keychain prompt before any network calls
+        DeviceIdentity.shared.initialize()
+
         // Hide from dock
         NSApp.setActivationPolicy(.accessory)
 
