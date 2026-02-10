@@ -302,12 +302,12 @@ class PizzaState: ObservableObject {
         request.setValue("Bearer \(botToken)", forHTTPHeaderField: "Authorization")
         request.setValue("application/json", forHTTPHeaderField: "Content-Type")
 
-        // Fetch from main session for alerts (messages starting with ✔️)
+        // Fetch pizza chat history
         let body: [String: Any] = [
             "tool": "sessions_history",
             "args": [
-                "sessionKey": "agent:main:main",
-                "limit": 200,
+                "sessionKey": "agent:main:app:pizza:main",
+                "limit": 50,
                 "includeTools": false
             ]
         ]
@@ -373,9 +373,6 @@ class PizzaState: ObservableObject {
                     }
 
                     guard !text.isEmpty else { continue }
-
-                    // Only show messages starting with ✔️ (alerts)
-                    guard text.hasPrefix("✔️") else { continue }
 
                     // Parse timestamp if available (could be createdAt string or timestamp int)
                     var timestamp = Date()
