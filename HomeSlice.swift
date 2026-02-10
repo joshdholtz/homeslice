@@ -1939,190 +1939,190 @@ struct ResponseBubble: View {
 }
 
 // MARK: - Kawaii Cat
+// Inspired by classic kawaii cat design: big head, small bean body, triangle ears
 
 struct KawaiiCat: View {
     let isBlinking: Bool
     let mood: PizzaMood
 
-    // Orange tabby cat colors
-    let furColor = Color(red: 1.0, green: 0.7, blue: 0.4)
-    let furLight = Color(red: 1.0, green: 0.85, blue: 0.7)
-    let furDark = Color(red: 0.9, green: 0.55, blue: 0.25)
-    let earPink = Color(red: 1.0, green: 0.7, blue: 0.75)
-    let noseColor = Color(red: 1.0, green: 0.55, blue: 0.6)
+    // Soft gray cat colors (like a cute gray tabby)
+    let furColor = Color(red: 0.75, green: 0.75, blue: 0.78)
+    let furLight = Color(red: 0.88, green: 0.88, blue: 0.9)
+    let furDark = Color(red: 0.6, green: 0.6, blue: 0.65)
+    let earPink = Color(red: 1.0, green: 0.78, blue: 0.82)
+    let noseColor = Color(red: 0.95, green: 0.7, blue: 0.75)
 
     var body: some View {
         ZStack {
-            // Tail curling up on the right side (behind body)
-            CatTail()
-                .stroke(furColor, style: StrokeStyle(lineWidth: 12, lineCap: .round))
-                .frame(width: 40, height: 50)
-                .offset(x: 35, y: 30)
+            // === TAIL - behind everything ===
+            // Simple curved tail on the side
+            Circle()
+                .trim(from: 0.5, to: 0.85)
+                .stroke(furColor, style: StrokeStyle(lineWidth: 10, lineCap: .round))
+                .frame(width: 45, height: 45)
+                .offset(x: 42, y: 35)
 
-            // Body - rounded rectangle sitting upright
-            RoundedRectangle(cornerRadius: 25)
-                .fill(
-                    LinearGradient(
-                        colors: [furLight, furColor],
-                        startPoint: .top,
-                        endPoint: .bottom
-                    )
-                )
-                .frame(width: 70, height: 65)
-                .offset(y: 45)
+            // === BODY - small bean/oval shape ===
+            Ellipse()
+                .fill(furColor)
+                .frame(width: 55, height: 45)
+                .offset(y: 42)
 
-            // Chest/tummy - lighter fur patch
+            // Tummy - lighter patch
             Ellipse()
                 .fill(furLight)
-                .frame(width: 45, height: 40)
-                .offset(y: 40)
+                .frame(width: 35, height: 30)
+                .offset(y: 42)
 
-            // Front paws - two little ovals at bottom
-            HStack(spacing: 8) {
-                Ellipse()
-                    .fill(furColor)
-                    .frame(width: 22, height: 16)
-                Ellipse()
-                    .fill(furColor)
-                    .frame(width: 22, height: 16)
+            // === LITTLE PAWS - two tiny ovals at front ===
+            HStack(spacing: 4) {
+                Ellipse().fill(furColor).frame(width: 16, height: 10)
+                Ellipse().fill(furColor).frame(width: 16, height: 10)
             }
-            .offset(y: 72)
+            .offset(y: 62)
 
-            // Head - round, sitting on top of body
+            // === HEAD - big round circle (the kawaii way!) ===
             Circle()
-                .fill(
-                    RadialGradient(
-                        colors: [furLight, furColor],
-                        center: .topLeading,
-                        startRadius: 5,
-                        endRadius: 50
-                    )
-                )
-                .frame(width: 70, height: 70)
-                .offset(y: -20)
-
-            // Ears - pointy triangles on top of head
-            // Left ear
-            CatEar()
                 .fill(furColor)
-                .frame(width: 24, height: 28)
-                .offset(x: -20, y: -52)
-            CatEar()
+                .frame(width: 80, height: 80)
+                .offset(y: -10)
+
+            // === EARS - soft triangles on TOP of head ===
+            // Left ear
+            KawaiiCatEar()
+                .fill(furColor)
+                .frame(width: 28, height: 32)
+                .rotationEffect(.degrees(-15))
+                .offset(x: -28, y: -45)
+            // Left ear inner pink
+            KawaiiCatEar()
                 .fill(earPink)
-                .frame(width: 12, height: 14)
-                .offset(x: -20, y: -48)
+                .frame(width: 14, height: 16)
+                .rotationEffect(.degrees(-15))
+                .offset(x: -28, y: -42)
 
             // Right ear
-            CatEar()
+            KawaiiCatEar()
                 .fill(furColor)
-                .frame(width: 24, height: 28)
-                .offset(x: 20, y: -52)
-            CatEar()
+                .frame(width: 28, height: 32)
+                .rotationEffect(.degrees(15))
+                .offset(x: 28, y: -45)
+            // Right ear inner pink
+            KawaiiCatEar()
                 .fill(earPink)
-                .frame(width: 12, height: 14)
-                .offset(x: 20, y: -48)
+                .frame(width: 14, height: 16)
+                .rotationEffect(.degrees(15))
+                .offset(x: 28, y: -42)
 
-            // Face elements - positioned on head
-            // Eyes
-            KawaiiFace(isBlinking: isBlinking, mood: mood)
-                .scaleEffect(0.8)
-                .offset(y: -25)
+            // === FACE ===
+            // Big kawaii eyes
+            HStack(spacing: 20) {
+                // Left eye
+                ZStack {
+                    Ellipse()
+                        .fill(Color.black)
+                        .frame(width: isBlinking ? 18 : 18, height: isBlinking ? 3 : 20)
+                    // Eye highlight
+                    if !isBlinking {
+                        Circle()
+                            .fill(Color.white)
+                            .frame(width: 7, height: 7)
+                            .offset(x: -3, y: -4)
+                        Circle()
+                            .fill(Color.white)
+                            .frame(width: 4, height: 4)
+                            .offset(x: 3, y: 3)
+                    }
+                }
+                // Right eye
+                ZStack {
+                    Ellipse()
+                        .fill(Color.black)
+                        .frame(width: isBlinking ? 18 : 18, height: isBlinking ? 3 : 20)
+                    // Eye highlight
+                    if !isBlinking {
+                        Circle()
+                            .fill(Color.white)
+                            .frame(width: 7, height: 7)
+                            .offset(x: -3, y: -4)
+                        Circle()
+                            .fill(Color.white)
+                            .frame(width: 4, height: 4)
+                            .offset(x: 3, y: 3)
+                    }
+                }
+            }
+            .offset(y: -15)
 
-            // Nose - little pink oval
+            // Tiny nose - small triangle/oval
             Ellipse()
                 .fill(noseColor)
-                .frame(width: 8, height: 6)
-                .offset(y: -8)
+                .frame(width: 10, height: 7)
+                .offset(y: 2)
 
-            // Mouth - tiny "w"
-            CatMouth()
-                .stroke(furDark, lineWidth: 1.5)
-                .frame(width: 14, height: 6)
-                .offset(y: -2)
-
-            // Whiskers
-            CatWhiskers()
-                .scaleEffect(0.7)
-                .offset(x: -22, y: -5)
-            CatWhiskers()
-                .scaleEffect(x: -0.7, y: 0.7)
-                .offset(x: 22, y: -5)
+            // Simple cat mouth :3
+            HStack(spacing: 1) {
+                // Left curve
+                Circle()
+                    .trim(from: 0.0, to: 0.5)
+                    .stroke(furDark, lineWidth: 2)
+                    .frame(width: 10, height: 10)
+                // Right curve
+                Circle()
+                    .trim(from: 0.0, to: 0.5)
+                    .stroke(furDark, lineWidth: 2)
+                    .frame(width: 10, height: 10)
+            }
+            .offset(y: 12)
 
             // Rosy cheeks
             Circle()
-                .fill(Color.pink.opacity(0.3))
-                .frame(width: 12, height: 12)
-                .offset(x: -18, y: -15)
+                .fill(Color.pink.opacity(0.35))
+                .frame(width: 14, height: 14)
+                .offset(x: -25, y: 0)
             Circle()
-                .fill(Color.pink.opacity(0.3))
-                .frame(width: 12, height: 12)
-                .offset(x: 18, y: -15)
+                .fill(Color.pink.opacity(0.35))
+                .frame(width: 14, height: 14)
+                .offset(x: 25, y: 0)
+
+            // Simple whisker dots (3 on each side)
+            HStack(spacing: 3) {
+                Circle().fill(furDark).frame(width: 3, height: 3)
+                Circle().fill(furDark).frame(width: 3, height: 3)
+                Circle().fill(furDark).frame(width: 3, height: 3)
+            }
+            .offset(x: -20, y: 5)
+            HStack(spacing: 3) {
+                Circle().fill(furDark).frame(width: 3, height: 3)
+                Circle().fill(furDark).frame(width: 3, height: 3)
+                Circle().fill(furDark).frame(width: 3, height: 3)
+            }
+            .offset(x: 20, y: 5)
         }
         .frame(width: 120, height: 140)
     }
 }
 
-// Cat tail curving up
-struct CatTail: Shape {
+// Soft rounded triangle ear shape
+struct KawaiiCatEar: Shape {
     func path(in rect: CGRect) -> Path {
         var path = Path()
-        path.move(to: CGPoint(x: 0, y: rect.height))
-        path.addQuadCurve(
-            to: CGPoint(x: rect.width, y: 0),
-            control: CGPoint(x: rect.width * 0.8, y: rect.height * 1.2)
-        )
-        return path
-    }
-}
-
-// Simple triangular cat ear
-struct CatEar: Shape {
-    func path(in rect: CGRect) -> Path {
-        var path = Path()
+        // Rounded triangle - curved edges for kawaii look
         path.move(to: CGPoint(x: rect.midX, y: 0))
-        path.addLine(to: CGPoint(x: rect.width * 0.1, y: rect.height))
-        path.addLine(to: CGPoint(x: rect.width * 0.9, y: rect.height))
+        path.addQuadCurve(
+            to: CGPoint(x: 0, y: rect.height),
+            control: CGPoint(x: rect.width * 0.1, y: rect.height * 0.4)
+        )
+        path.addQuadCurve(
+            to: CGPoint(x: rect.width, y: rect.height),
+            control: CGPoint(x: rect.midX, y: rect.height * 0.85)
+        )
+        path.addQuadCurve(
+            to: CGPoint(x: rect.midX, y: 0),
+            control: CGPoint(x: rect.width * 0.9, y: rect.height * 0.4)
+        )
         path.closeSubpath()
         return path
-    }
-}
-
-// Cat "w" shaped mouth
-struct CatMouth: Shape {
-    func path(in rect: CGRect) -> Path {
-        var path = Path()
-        path.move(to: CGPoint(x: 0, y: 0))
-        path.addQuadCurve(
-            to: CGPoint(x: rect.midX, y: rect.height),
-            control: CGPoint(x: rect.width * 0.25, y: rect.height * 0.8)
-        )
-        path.addQuadCurve(
-            to: CGPoint(x: rect.width, y: 0),
-            control: CGPoint(x: rect.width * 0.75, y: rect.height * 0.8)
-        )
-        return path
-    }
-}
-
-// Simple whisker lines
-struct CatWhiskers: View {
-    var body: some View {
-        ZStack {
-            // Three whiskers angled out
-            Rectangle()
-                .fill(Color(red: 0.5, green: 0.4, blue: 0.35))
-                .frame(width: 22, height: 1.5)
-                .rotationEffect(.degrees(-10))
-                .offset(y: -5)
-            Rectangle()
-                .fill(Color(red: 0.5, green: 0.4, blue: 0.35))
-                .frame(width: 24, height: 1.5)
-            Rectangle()
-                .fill(Color(red: 0.5, green: 0.4, blue: 0.35))
-                .frame(width: 22, height: 1.5)
-                .rotationEffect(.degrees(10))
-                .offset(y: 5)
-        }
     }
 }
 
@@ -2132,199 +2132,163 @@ struct KawaiiJacob: View {
     let isBlinking: Bool
     let mood: PizzaMood
 
-    // Colors
-    let skinTone = Color(red: 0.96, green: 0.87, blue: 0.78)
-    let hairColor = Color(red: 0.55, green: 0.35, blue: 0.22)
-    let beardColor = Color(red: 0.5, green: 0.38, blue: 0.3)
-    let beardGray = Color(red: 0.6, green: 0.55, blue: 0.5)
-    let capColor = Color(red: 0.92, green: 0.88, blue: 0.82)
-    let hoodieColor = Color.white
-    let cardiganColor = Color(red: 0.5, green: 0.5, blue: 0.52)
-    let glassesColor = Color(red: 0.75, green: 0.75, blue: 0.8)
+    // Colors - matched to photo
+    let skinTone = Color(red: 0.95, green: 0.85, blue: 0.75)
+    let hairColor = Color(red: 0.5, green: 0.32, blue: 0.18)  // Auburn brown
+    let hairHighlight = Color(red: 0.6, green: 0.4, blue: 0.25)
+    let beardBrown = Color(red: 0.45, green: 0.32, blue: 0.22)
+    let beardGray = Color(red: 0.55, green: 0.5, blue: 0.45)
+    let capColor = Color(red: 0.9, green: 0.87, blue: 0.8)  // Beige
+    let cardiganColor = Color(red: 0.45, green: 0.45, blue: 0.47)  // Dark gray
+    let glassesFrame = Color(red: 0.6, green: 0.6, blue: 0.65)
+    let glassesLens = Color(red: 0.7, green: 0.75, blue: 0.85)
 
     var body: some View {
         ZStack {
-            // Body/hoodie - rounded shape
-            RoundedRectangle(cornerRadius: 20)
+            // === LAYER 1: Body (cardigan + hoodie) ===
+            // Gray cardigan
+            RoundedRectangle(cornerRadius: 18)
                 .fill(cardiganColor)
-                .frame(width: 80, height: 55)
-                .offset(y: 55)
+                .frame(width: 75, height: 50)
+                .offset(y: 58)
 
-            // Hoodie showing underneath
-            RoundedRectangle(cornerRadius: 15)
-                .fill(hoodieColor)
-                .frame(width: 50, height: 45)
-                .offset(y: 52)
+            // White hoodie V-neck showing
+            Path { path in
+                path.move(to: CGPoint(x: 0, y: 0))
+                path.addLine(to: CGPoint(x: 20, y: 35))
+                path.addLine(to: CGPoint(x: 40, y: 0))
+                path.closeSubpath()
+            }
+            .fill(Color.white)
+            .frame(width: 40, height: 35)
+            .offset(y: 48)
 
-            // RC logo on hoodie (small pink text)
-            Text("RC")
-                .font(.system(size: 8, weight: .bold))
-                .foregroundColor(Color.pink)
-                .offset(y: 45)
+            // Hoodie strings
+            Path { path in
+                path.move(to: CGPoint(x: 8, y: 0))
+                path.addLine(to: CGPoint(x: 6, y: 18))
+                path.move(to: CGPoint(x: 22, y: 0))
+                path.addLine(to: CGPoint(x: 24, y: 18))
+            }
+            .stroke(Color.gray.opacity(0.4), lineWidth: 1.5)
+            .frame(width: 30, height: 18)
+            .offset(y: 52)
 
-            // Long wavy hair behind head
-            JacobHair()
+            // === LAYER 2: Hair behind head ===
+            // Left hair flowing down
+            Ellipse()
                 .fill(
-                    LinearGradient(
-                        colors: [hairColor, hairColor.opacity(0.8)],
-                        startPoint: .top,
-                        endPoint: .bottom
-                    )
+                    LinearGradient(colors: [hairHighlight, hairColor],
+                                   startPoint: .top, endPoint: .bottom)
                 )
-                .frame(width: 90, height: 70)
-                .offset(y: 5)
+                .frame(width: 35, height: 75)
+                .rotationEffect(.degrees(15))
+                .offset(x: -38, y: 15)
 
-            // Face - round
+            // Right hair flowing down
+            Ellipse()
+                .fill(
+                    LinearGradient(colors: [hairHighlight, hairColor],
+                                   startPoint: .top, endPoint: .bottom)
+                )
+                .frame(width: 35, height: 75)
+                .rotationEffect(.degrees(-15))
+                .offset(x: 38, y: 15)
+
+            // === LAYER 3: Face ===
             Circle()
                 .fill(skinTone)
-                .frame(width: 60, height: 60)
-                .offset(y: -10)
+                .frame(width: 55, height: 55)
+                .offset(y: -8)
 
-            // Big fluffy beard
-            JacobBeard()
+            // === LAYER 4: THE MAGNIFICENT BEARD ===
+            // Main beard mass - gray with white/light center
+            Ellipse()
                 .fill(
-                    LinearGradient(
-                        colors: [beardColor, beardGray],
-                        startPoint: .topLeading,
-                        endPoint: .bottomTrailing
+                    RadialGradient(
+                        colors: [Color(red: 0.85, green: 0.82, blue: 0.78), Color(red: 0.5, green: 0.48, blue: 0.45)],
+                        center: .center,
+                        startRadius: 5,
+                        endRadius: 40
                     )
                 )
-                .frame(width: 70, height: 50)
-                .offset(y: 18)
+                .frame(width: 70, height: 55)
+                .offset(y: 25)
 
-            // Baseball cap
-            JacobCap()
-                .fill(capColor)
-                .frame(width: 70, height: 30)
-                .offset(y: -35)
+            // Beard texture - fluffy waves at bottom (grays)
+            HStack(spacing: 2) {
+                ForEach(0..<5, id: \.self) { i in
+                    Ellipse()
+                        .fill(i % 2 == 0 ? Color(red: 0.55, green: 0.52, blue: 0.48) : Color(red: 0.7, green: 0.68, blue: 0.65))
+                        .frame(width: 14, height: 18)
+                }
+            }
+            .offset(y: 48)
 
-            // Cap brim
+            // Mustache - brownish gray
+            Ellipse()
+                .fill(Color(red: 0.5, green: 0.45, blue: 0.4))
+                .frame(width: 35, height: 12)
+                .offset(y: 8)
+
+            // === LAYER 5: Cap ===
+            // Cap dome
             Ellipse()
                 .fill(capColor)
-                .frame(width: 55, height: 12)
-                .offset(y: -22)
+                .frame(width: 65, height: 35)
+                .offset(y: -32)
+
+            // Cap brim - curved
+            Ellipse()
+                .fill(capColor)
+                .frame(width: 60, height: 14)
+                .shadow(color: .black.opacity(0.1), radius: 1, y: 1)
+                .offset(y: -18)
 
             // RC logo on cap
             Text("RC")
-                .font(.system(size: 7, weight: .bold))
-                .foregroundColor(Color.pink)
-                .offset(x: 0, y: -40)
+                .font(.system(size: 10, weight: .heavy))
+                .foregroundColor(Color(red: 0.9, green: 0.4, blue: 0.5))
+                .offset(y: -35)
 
-            // Round sunglasses
-            HStack(spacing: 8) {
-                // Left lens
-                Circle()
-                    .fill(glassesColor.opacity(0.6))
-                    .frame(width: 22, height: 22)
-                    .overlay(
-                        Circle()
-                            .stroke(Color.gray.opacity(0.8), lineWidth: 2)
-                    )
-                // Right lens
-                Circle()
-                    .fill(glassesColor.opacity(0.6))
-                    .frame(width: 22, height: 22)
-                    .overlay(
-                        Circle()
-                            .stroke(Color.gray.opacity(0.8), lineWidth: 2)
-                    )
-            }
-            .offset(y: -12)
+            // === LAYER 6: Sunglasses (the iconic look) ===
+            // Left lens
+            Circle()
+                .fill(
+                    LinearGradient(colors: [glassesLens, glassesLens.opacity(0.7)],
+                                   startPoint: .topLeading, endPoint: .bottomTrailing)
+                )
+                .frame(width: 26, height: 26)
+                .overlay(Circle().stroke(glassesFrame, lineWidth: 2.5))
+                .offset(x: -15, y: -10)
 
-            // Glasses bridge
+            // Right lens
+            Circle()
+                .fill(
+                    LinearGradient(colors: [glassesLens, glassesLens.opacity(0.7)],
+                                   startPoint: .topLeading, endPoint: .bottomTrailing)
+                )
+                .frame(width: 26, height: 26)
+                .overlay(Circle().stroke(glassesFrame, lineWidth: 2.5))
+                .offset(x: 15, y: -10)
+
+            // Bridge
             Rectangle()
-                .fill(Color.gray.opacity(0.8))
-                .frame(width: 8, height: 2)
-                .offset(y: -12)
+                .fill(glassesFrame)
+                .frame(width: 6, height: 3)
+                .offset(y: -10)
 
-            // Rosy cheeks (visible above beard)
+            // Lens shine/reflection
             Circle()
-                .fill(Color.pink.opacity(0.25))
-                .frame(width: 10, height: 10)
-                .offset(x: -22, y: -5)
+                .fill(Color.white.opacity(0.4))
+                .frame(width: 8, height: 8)
+                .offset(x: -20, y: -14)
             Circle()
-                .fill(Color.pink.opacity(0.25))
-                .frame(width: 10, height: 10)
-                .offset(x: 22, y: -5)
+                .fill(Color.white.opacity(0.4))
+                .frame(width: 8, height: 8)
+                .offset(x: 10, y: -14)
         }
         .frame(width: 120, height: 140)
-    }
-}
-
-// Jacob's wavy long hair
-struct JacobHair: Shape {
-    func path(in rect: CGRect) -> Path {
-        var path = Path()
-        // Hair flows down from top, wavy edges
-        path.move(to: CGPoint(x: rect.midX, y: 0))
-        // Left side waves
-        path.addQuadCurve(
-            to: CGPoint(x: rect.width * 0.1, y: rect.height * 0.5),
-            control: CGPoint(x: rect.width * 0.15, y: rect.height * 0.25)
-        )
-        path.addQuadCurve(
-            to: CGPoint(x: rect.width * 0.15, y: rect.height),
-            control: CGPoint(x: 0, y: rect.height * 0.75)
-        )
-        // Bottom
-        path.addQuadCurve(
-            to: CGPoint(x: rect.width * 0.85, y: rect.height),
-            control: CGPoint(x: rect.midX, y: rect.height * 0.9)
-        )
-        // Right side waves
-        path.addQuadCurve(
-            to: CGPoint(x: rect.width * 0.9, y: rect.height * 0.5),
-            control: CGPoint(x: rect.width, y: rect.height * 0.75)
-        )
-        path.addQuadCurve(
-            to: CGPoint(x: rect.midX, y: 0),
-            control: CGPoint(x: rect.width * 0.85, y: rect.height * 0.25)
-        )
-        path.closeSubpath()
-        return path
-    }
-}
-
-// Jacob's fluffy beard
-struct JacobBeard: Shape {
-    func path(in rect: CGRect) -> Path {
-        var path = Path()
-        // Beard starts from cheeks and flows down fluffy
-        path.move(to: CGPoint(x: 0, y: 0))
-        path.addQuadCurve(
-            to: CGPoint(x: rect.width * 0.2, y: rect.height),
-            control: CGPoint(x: 0, y: rect.height * 0.7)
-        )
-        // Fluffy bottom with waves
-        path.addQuadCurve(
-            to: CGPoint(x: rect.midX, y: rect.height * 0.85),
-            control: CGPoint(x: rect.width * 0.35, y: rect.height * 1.1)
-        )
-        path.addQuadCurve(
-            to: CGPoint(x: rect.width * 0.8, y: rect.height),
-            control: CGPoint(x: rect.width * 0.65, y: rect.height * 1.1)
-        )
-        path.addQuadCurve(
-            to: CGPoint(x: rect.width, y: 0),
-            control: CGPoint(x: rect.width, y: rect.height * 0.7)
-        )
-        path.closeSubpath()
-        return path
-    }
-}
-
-// Jacob's baseball cap
-struct JacobCap: Shape {
-    func path(in rect: CGRect) -> Path {
-        var path = Path()
-        // Rounded cap shape
-        path.move(to: CGPoint(x: rect.width * 0.1, y: rect.height))
-        path.addQuadCurve(
-            to: CGPoint(x: rect.width * 0.9, y: rect.height),
-            control: CGPoint(x: rect.midX, y: -rect.height * 0.3)
-        )
-        path.closeSubpath()
-        return path
     }
 }
 
