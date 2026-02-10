@@ -2385,21 +2385,6 @@ struct ResponseBubble: View {
     let message: String
     var onLeft: Bool = false
 
-    // Parse markdown to AttributedString
-    private var markdownContent: AttributedString {
-        do {
-            var options = AttributedString.MarkdownParsingOptions()
-            options.interpretedSyntax = .full
-            var result = try AttributedString(markdown: message, options: options)
-            // Set default foreground color without overriding markdown styles
-            result.mergeAttributes(AttributeContainer.foregroundColor(.black), mergePolicy: .keepCurrent)
-            return result
-        } catch {
-            var plain = AttributedString(message)
-            plain.foregroundColor = .black
-            return plain
-        }
-    }
 
     var body: some View {
         HStack(alignment: .top, spacing: 0) {
@@ -2407,11 +2392,13 @@ struct ResponseBubble: View {
             VStack(alignment: .leading, spacing: 8) {
                 // Scrollable message content with markdown
                 ScrollView {
-                    Text(markdownContent)
+                    Text(.init(message))  // LocalizedStringKey parses markdown automatically
                         .font(.system(size: 14))
+                        .foregroundColor(.black)
                         .multilineTextAlignment(.leading)
                         .fixedSize(horizontal: false, vertical: true)
                         .frame(maxWidth: .infinity, alignment: .leading)
+                        .padding(.trailing, 4)  // Space for scrollbar
                 }
                 .frame(maxHeight: 160)
 
@@ -2478,11 +2465,9 @@ struct ResponseBubble: View {
         .frame(width: 280)
         .frame(maxHeight: 220)
         .fixedSize(horizontal: false, vertical: true)
-        .background(
-            RoundedRectangle(cornerRadius: 12)
-                .fill(Color.white)
-                .shadow(color: .black.opacity(0.25), radius: 4)
-        )
+        .background(Color.white)
+        .clipShape(RoundedRectangle(cornerRadius: 12))
+        .shadow(color: .black.opacity(0.25), radius: 4)
     }
 }
 
