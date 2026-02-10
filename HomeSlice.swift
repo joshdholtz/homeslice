@@ -996,7 +996,7 @@ struct KawaiiPizzaView: View {
                 .rotationEffect(.degrees(wiggleAngle + spinAngle))
 
                 // Speech bubble for mood
-                if pizzaState.mood != .happy && !pizzaState.showChatInput && !pizzaState.showResponse && !pizzaState.isThinking {
+                if pizzaState.mood != .happy && !pizzaState.showChatInput && !pizzaState.chatDisplay.showResponse && !pizzaState.chatDisplay.isThinking {
                     SpeechBubble(mood: pizzaState.mood)
                         .offset(x: 50, y: -50)
                         .transition(.scale.combined(with: .opacity))
