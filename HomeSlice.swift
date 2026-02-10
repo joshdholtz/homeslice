@@ -474,6 +474,9 @@ class GatewayClient {
                 return
             }
 
+            // Check if this is from activity session
+            let isActivitySession = sessionKey.contains("activity")
+
             // Capture streaming text from assistant
             if let stream = payload["stream"] as? String, stream == "assistant",
                let data = payload["data"] as? [String: Any],
@@ -485,7 +488,18 @@ class GatewayClient {
             if let data = payload["data"] as? [String: Any],
                let phase = data["phase"] as? String, phase == "end" {
                 print(">>> Agent ended, delivering response")
-                finishWithResponse()
+
+                // For activity session, only show if it's not just an acknowledgment
+                if isActivitySession {
+                    let response = responseBuffer.trimmingCharacters(in: .whitespacesAndNewlines)
+                    if response.count > 5 && !response.hasPrefix("📝") {
+                        // Bot has something to say! Show it
+                        showActivityNudge(response)
+                    }
+                    responseBuffer = ""
+                } else {
+                    finishWithResponse()
+                }
             }
 
         default:
@@ -659,6 +673,39 @@ class GatewayClient {
         responseBuffer = ""
         print(">>> Delivering response: \(response.prefix(50))...")
         completion(response)  // Already on main thread
+    }
+
+    private func showActivityNudge(_ message: String) {
+        print(">>> Activity nudge: \(message)")
+        DispatchQueue.main.async {
+            let state = PizzaState.shared
+
+            // Force UTF8 encoding
+            let utf8Data = message.data(using: .utf8) ?? Data()
+            let utf8String = String(data: utf8Data, encoding: .utf8) ?? message
+
+            // Check pizza position for bubble side
+            var bubbleOnLeft = false
+            if let appDelegate = NSApp.delegate as? AppDelegate,
+               let screen = NSScreen.main {
+                let panelX = appDelegate.panel.frame.midX
+                bubbleOnLeft = panelX > screen.frame.midX
+            }
+
+            state.chatDisplay = ChatDisplayState(
+                isThinking: false,
+                showResponse: true,
+                botResponse: utf8String,
+                bubbleOnLeft: bubbleOnLeft
+            )
+            state.mood = .surprised  // Get attention!
+
+            // Hide after 8 seconds
+            DispatchQueue.main.asyncAfter(deadline: .now() + 8) {
+                state.chatDisplay = ChatDisplayState()
+                state.mood = .happy
+            }
+        }
     }
 
     func disconnect() {
