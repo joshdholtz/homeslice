@@ -291,8 +291,16 @@ class PizzaState: ObservableObject {
         // Add user message to history
         addToHistory(role: "user", content: message)
 
+        // Calculate bubble position based on pizza location
+        var bubbleOnLeft = false
+        if let appDelegate = NSApp.delegate as? AppDelegate,
+           let screen = NSScreen.main {
+            let panelX = appDelegate.panel.frame.midX
+            bubbleOnLeft = panelX > screen.frame.midX
+        }
+
         // Single atomic update to start thinking
-        chatDisplay = ChatDisplayState(isThinking: true, showResponse: false, botResponse: "")
+        chatDisplay = ChatDisplayState(isThinking: true, showResponse: false, botResponse: "", bubbleOnLeft: bubbleOnLeft)
         mood = .excited
 
         GatewayClient.shared.send(message: message, to: botURL, token: botToken) { [weak self] response in
@@ -1722,10 +1730,13 @@ struct KawaiiPizzaView: View {
                         .transition(.scale.combined(with: .opacity))
                 }
 
-                // Thinking indicator
+                // Thinking indicator - position matches response bubble
                 if pizzaState.chatDisplay.isThinking {
                     ThinkingBubble()
-                        .offset(x: 60, y: -60)
+                        .offset(
+                            x: pizzaState.chatDisplay.bubbleOnLeft ? -160 : 160,
+                            y: -60
+                        )
                 }
 
                 // Bot response bubble - position based on pizza screen location
