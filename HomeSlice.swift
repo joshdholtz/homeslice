@@ -666,6 +666,11 @@ class AppDelegate: NSObject, NSApplicationDelegate {
         toggleItem.target = self
         menu.addItem(toggleItem)
 
+        // Reset position (debug)
+        let resetItem = NSMenuItem(title: "Reset Position", action: #selector(resetPosition), keyEquivalent: "r")
+        resetItem.target = self
+        menu.addItem(resetItem)
+
         // Fun actions submenu
         let actionsMenuItem = NSMenuItem(title: "Actions", action: nil, keyEquivalent: "")
         let actionsSubmenu = NSMenu()
@@ -781,10 +786,29 @@ class AppDelegate: NSObject, NSApplicationDelegate {
         }
     }
 
+    @objc func resetPosition() {
+        if let screen = NSScreen.main {
+            let x = screen.frame.midX - panel.frame.width / 2
+            let y = screen.frame.midY - panel.frame.height / 2
+            panel.setFrameOrigin(NSPoint(x: x, y: y))
+            panel.setContentSize(NSSize(width: 600, height: 600))
+            panel.orderFrontRegardless()
+            print(">>> Panel reset - frame: \(panel.frame), visible: \(panel.isVisible)")
+        }
+    }
+
     @objc func toggleVisibility() {
         pizzaState.isVisible.toggle()
         if pizzaState.isVisible {
+            // Reset panel to center of screen
+            if let screen = NSScreen.main {
+                let x = screen.frame.midX - panel.frame.width / 2
+                let y = screen.frame.midY - panel.frame.height / 2
+                panel.setFrameOrigin(NSPoint(x: x, y: y))
+                print(">>> Panel moved to: \(panel.frame)")
+            }
             panel.orderFrontRegardless()
+            print(">>> Panel visible: \(panel.isVisible), frame: \(panel.frame)")
         } else {
             panel.orderOut(nil)
         }
