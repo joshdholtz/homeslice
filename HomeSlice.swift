@@ -1002,11 +1002,11 @@ struct KawaiiPizzaView: View {
                         .transition(.scale.combined(with: .opacity))
                 }
 
-                // Thinking indicator
-                if pizzaState.chatDisplay.isThinking {
-                    ThinkingBubble()
-                        .offset(x: 60, y: -60)
-                }
+                // Thinking indicator - DISABLED FOR DEBUGGING
+                // if pizzaState.chatDisplay.isThinking {
+                //     ThinkingBubble()
+                //         .offset(x: 60, y: -60)
+                // }
 
                 // Bot response bubble
                 if pizzaState.chatDisplay.showResponse {
