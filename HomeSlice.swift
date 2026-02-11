@@ -3199,6 +3199,10 @@ struct BusinessPizzaSlice: View {
                         )
                     )
 
+                // Crust texture - toasted spots
+                CrustTexture()
+                    .clipShape(CrustShape())
+
                 // Pepperoni as cheeks (positioned BELOW the eyes)
                 // After flip: internal y=10 → frame Y≈60, y=5 → frame Y≈65
                 Pepperoni()
@@ -3243,6 +3247,34 @@ struct CheeseTexture: View {
                 context.fill(
                     Circle().path(in: rect),
                     with: .color(Color.white.opacity(spot.opacity))
+                )
+            }
+        }
+    }
+}
+
+struct CrustTexture: View {
+    var body: some View {
+        Canvas { context, size in
+            // Toasted brown spots on crust
+            let toastColor = Color(red: 0.5, green: 0.35, blue: 0.2)
+            let spots: [(x: CGFloat, y: CGFloat, r: CGFloat, opacity: Double)] = [
+                // Scattered across crust area (y > 110 in unflipped coords)
+                (25, 118, 3, 0.3), (40, 122, 2.5, 0.25), (55, 120, 2, 0.2),
+                (70, 118, 3, 0.28), (85, 121, 2.5, 0.22), (95, 117, 2, 0.25),
+                (32, 125, 2, 0.2), (62, 124, 2.5, 0.23), (78, 126, 2, 0.2),
+            ]
+
+            for spot in spots {
+                let rect = CGRect(
+                    x: spot.x - spot.r,
+                    y: spot.y - spot.r,
+                    width: spot.r * 2,
+                    height: spot.r * 2
+                )
+                context.fill(
+                    Circle().path(in: rect),
+                    with: .color(toastColor.opacity(spot.opacity))
                 )
             }
         }
@@ -3369,14 +3401,14 @@ struct BusinessGlasses: View {
             // Left lens - round for cuteness!
             Circle()
                 .stroke(frameColor, lineWidth: 2.5)
-                .frame(width: 18, height: 18)
-                .offset(x: -12)
+                .frame(width: 22, height: 22)
+                .offset(x: -14)
 
             // Right lens - round for cuteness!
             Circle()
                 .stroke(frameColor, lineWidth: 2.5)
-                .frame(width: 18, height: 18)
-                .offset(x: 12)
+                .frame(width: 22, height: 22)
+                .offset(x: 14)
 
             // Cute curved bridge
             Path { path in
@@ -3391,19 +3423,19 @@ struct BusinessGlasses: View {
             // Sparkly lens shine!
             Circle()
                 .fill(Color.white.opacity(0.4))
-                .frame(width: 5, height: 5)
-                .offset(x: -15, y: -5)
+                .frame(width: 6, height: 6)
+                .offset(x: -18, y: -6)
 
             Circle()
                 .fill(Color.white.opacity(0.4))
-                .frame(width: 5, height: 5)
-                .offset(x: 9, y: -5)
+                .frame(width: 6, height: 6)
+                .offset(x: 10, y: -6)
 
             // Tiny extra sparkle
             Circle()
                 .fill(Color.white.opacity(0.25))
-                .frame(width: 2, height: 2)
-                .offset(x: -12, y: -2)
+                .frame(width: 3, height: 3)
+                .offset(x: -14, y: -2)
 
             Circle()
                 .fill(Color.white.opacity(0.25))
