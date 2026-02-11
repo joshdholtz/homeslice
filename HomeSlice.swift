@@ -3223,16 +3223,13 @@ struct CheeseTexture: View {
     var body: some View {
         Canvas { context, size in
             // Scattered subtle cheese bubbles/highlights
-            // Avoid center area where pepperoni are (y ~60-85)
+            // Pepperoni at internal y≈75-78, so avoid y=50-95 entirely
             let spots: [(x: CGFloat, y: CGFloat, r: CGFloat, opacity: Double)] = [
-                // Near crust (top area, y < 50)
-                (30, 35, 2.5, 0.12), (50, 28, 2, 0.1), (70, 38, 2, 0.11),
-                (45, 42, 2.5, 0.1), (85, 45, 2, 0.09),
-                // Near tip (bottom area, y > 95)
-                (55, 100, 2.5, 0.12), (50, 110, 2, 0.1), (60, 105, 2, 0.11),
-                (45, 115, 2.5, 0.1), (65, 118, 2, 0.09),
-                // Edges only in middle
-                (25, 55, 2, 0.1), (95, 55, 2, 0.1),
+                // Very near tip only (internal y < 30)
+                (55, 18, 2, 0.1), (60, 22, 2.5, 0.11), (50, 25, 2, 0.09),
+                // Very near crust only (internal y > 105)
+                (35, 108, 2, 0.1), (55, 112, 2.5, 0.11), (75, 106, 2, 0.09),
+                (45, 118, 2, 0.1), (65, 115, 2, 0.1),
             ]
 
             for spot in spots {
