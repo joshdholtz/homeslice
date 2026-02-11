@@ -1932,12 +1932,6 @@ struct KawaiiPizzaView: View {
                 }
                 .rotationEffect(.degrees(wiggleAngle + spinAngle))
 
-                // Speech bubble for mood
-                if pizzaState.mood != .happy && !pizzaState.showChatInput && !pizzaState.chatDisplay.showResponse && !pizzaState.chatDisplay.isThinking {
-                    SpeechBubble(mood: pizzaState.mood)
-                        .offset(x: 50, y: -50)
-                        .transition(.scale.combined(with: .opacity))
-                }
 
                 // Thinking indicator - same side as response but closer
                 if pizzaState.chatDisplay.isThinking {
@@ -2239,29 +2233,36 @@ struct ParticleView: View {
 struct SpeechBubble: View {
     let mood: PizzaMood
 
-    var message: String {
-        switch mood {
-        case .happy: return ""
-        case .excited: return "Yay!"
-        case .sleepy: return "zzZ..."
-        case .love: return "♥‿♥"
-        case .surprised: return "!!"
+    var body: some View {
+        // Only show for moods with messages
+        Group {
+            switch mood {
+            case .happy:
+                EmptyView()
+            case .excited:
+                bubbleText("Yay!")
+            case .sleepy:
+                bubbleText("zzZ...")
+            case .love:
+                bubbleText("♥‿♥")
+            case .surprised:
+                bubbleText("!!")
+            }
         }
     }
 
-    var body: some View {
-        if !message.isEmpty {
-            Text(message)
-                .font(.system(size: 12, weight: .bold))
-                .padding(.horizontal, 8)
-                .padding(.vertical, 4)
-                .background(
-                    RoundedRectangle(cornerRadius: 8)
-                        .fill(.white)
-                        .shadow(radius: 2)
-                )
-                .offset(y: -5)
-        }
+    @ViewBuilder
+    func bubbleText(_ text: String) -> some View {
+        Text(text)
+            .font(.system(size: 12, weight: .bold))
+            .padding(.horizontal, 8)
+            .padding(.vertical, 4)
+            .background(
+                RoundedRectangle(cornerRadius: 8)
+                    .fill(.white)
+                    .shadow(radius: 2)
+            )
+            .offset(y: -5)
     }
 }
 
