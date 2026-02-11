@@ -3197,55 +3197,84 @@ struct BusinessPizzaSlice: View {
                 Pepperoni()
                     .scaleEffect(0.65)
                     .offset(x: 20, y: 5)
+
+                // Green pepper "tie" ON the pizza (inside flipped view)
+                GreenPepperTie()
+                    .offset(x: 0, y: 35)
             }
             .scaleEffect(x: 1, y: -1) // Flip vertically
-
-            // Tie at the bottom tip of pizza
-            BusinessTie()
-                .scaleEffect(1.3)
-                .offset(x: 0, y: 75)
         }
         .frame(width: 120, height: 140)
     }
 }
 
-struct BusinessTie: View {
-    let tieColor = Color(red: 0.15, green: 0.15, blue: 0.35) // Navy blue
+struct GreenPepperTie: View {
+    let pepperGreen = Color(red: 0.2, green: 0.55, blue: 0.2)
+    let pepperHighlight = Color(red: 0.35, green: 0.7, blue: 0.3)
 
     var body: some View {
-        VStack(spacing: 0) {
-            // Tie knot (small rectangle at top)
-            RoundedRectangle(cornerRadius: 2)
-                .fill(tieColor)
-                .frame(width: 12, height: 8)
-
-            // Tie body (widens then tapers to point)
-            TieBodyShape()
-                .fill(tieColor)
-                .frame(width: 18, height: 35)
+        VStack(spacing: -2) {
+            // "Knot" - small curved pepper piece
+            Capsule()
+                .fill(
+                    LinearGradient(
+                        colors: [pepperHighlight, pepperGreen],
+                        startPoint: .top,
+                        endPoint: .bottom
+                    )
+                )
+                .frame(width: 14, height: 8)
                 .overlay(
-                    // Subtle stripe detail
-                    Rectangle()
-                        .fill(Color.white.opacity(0.15))
-                        .frame(width: 2, height: 28)
-                        .offset(y: -2)
+                    Capsule()
+                        .stroke(Color.black.opacity(0.2), lineWidth: 0.5)
+                )
+
+            // Tie body - curved pepper strip
+            GreenPepperTieBody()
+                .fill(
+                    LinearGradient(
+                        colors: [pepperHighlight, pepperGreen, pepperGreen.opacity(0.8)],
+                        startPoint: .leading,
+                        endPoint: .trailing
+                    )
+                )
+                .frame(width: 20, height: 40)
+                .overlay(
+                    GreenPepperTieBody()
+                        .stroke(Color.black.opacity(0.15), lineWidth: 0.5)
                 )
         }
     }
 }
 
-struct TieBodyShape: Shape {
+struct GreenPepperTieBody: Shape {
     func path(in rect: CGRect) -> Path {
         var path = Path()
         let midX = rect.midX
-        // Start narrow at top
-        path.move(to: CGPoint(x: midX - 5, y: 0))
-        path.addLine(to: CGPoint(x: midX + 5, y: 0))
-        // Widen
-        path.addLine(to: CGPoint(x: midX + 8, y: rect.height * 0.3))
-        // Taper to point
-        path.addLine(to: CGPoint(x: midX, y: rect.height))
-        path.addLine(to: CGPoint(x: midX - 8, y: rect.height * 0.3))
+
+        // Curved pepper strip that looks like a tie
+        path.move(to: CGPoint(x: midX - 6, y: 0))
+
+        // Left edge curves out then in
+        path.addQuadCurve(
+            to: CGPoint(x: midX - 8, y: rect.height * 0.4),
+            control: CGPoint(x: midX - 9, y: rect.height * 0.2)
+        )
+        path.addQuadCurve(
+            to: CGPoint(x: midX, y: rect.height),
+            control: CGPoint(x: midX - 6, y: rect.height * 0.75)
+        )
+
+        // Right edge curves back up
+        path.addQuadCurve(
+            to: CGPoint(x: midX + 8, y: rect.height * 0.4),
+            control: CGPoint(x: midX + 6, y: rect.height * 0.75)
+        )
+        path.addQuadCurve(
+            to: CGPoint(x: midX + 6, y: 0),
+            control: CGPoint(x: midX + 9, y: rect.height * 0.2)
+        )
+
         path.closeSubpath()
         return path
     }
