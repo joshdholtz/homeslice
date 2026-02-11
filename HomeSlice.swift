@@ -3188,18 +3188,20 @@ struct BusinessPizzaSlice: View {
                         )
                     )
 
-                // Pepperoni (adjusted for flipped orientation)
+                // Pepperoni as cheeks (positioned for flipped view)
                 Pepperoni()
-                    .offset(x: -15, y: 40)
+                    .scaleEffect(0.7)
+                    .offset(x: -25, y: 70)
 
                 Pepperoni()
-                    .offset(x: 15, y: 45)
+                    .scaleEffect(0.7)
+                    .offset(x: 25, y: 70)
             }
             .scaleEffect(x: 1, y: -1) // Flip vertically
 
-            // Tie hangs from the point (now at bottom)
+            // Tie hangs from the point (now at bottom), centered
             BusinessTie()
-                .offset(y: 85)
+                .offset(x: 0, y: 80)
         }
         .frame(width: 120, height: 140)
     }
@@ -3246,7 +3248,11 @@ struct BusinessKawaiiFace: View {
 
     var body: some View {
         ZStack {
-            // Eyes first (behind glasses)
+            // Glasses first (behind eyes)
+            BusinessGlasses()
+                .offset(y: -5)
+
+            // Eyes on top of glasses
             HStack(spacing: 22) {
                 // Left eye
                 ZStack {
@@ -3290,20 +3296,26 @@ struct BusinessKawaiiFace: View {
             }
             .offset(y: -5)
 
-            // Glasses on top of eyes
-            BusinessGlasses()
-                .offset(y: -5)
+            // Small cute mouth
+            Path { path in
+                path.move(to: CGPoint(x: -5, y: 14))
+                path.addQuadCurve(
+                    to: CGPoint(x: 5, y: 14),
+                    control: CGPoint(x: 0, y: 18)
+                )
+            }
+            .stroke(Color.black.opacity(0.7), lineWidth: 2)
 
-            // Subtle blush only - no mouth for serious business look
+            // Subtle blush
             Circle()
-                .fill(Color.pink.opacity(0.2))
+                .fill(Color.pink.opacity(0.25))
                 .frame(width: 8, height: 8)
-                .offset(x: -20, y: 8)
+                .offset(x: -20, y: 10)
 
             Circle()
-                .fill(Color.pink.opacity(0.2))
+                .fill(Color.pink.opacity(0.25))
                 .frame(width: 8, height: 8)
-                .offset(x: 20, y: 8)
+                .offset(x: 20, y: 10)
         }
     }
 }
