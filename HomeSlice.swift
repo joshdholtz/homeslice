@@ -3198,13 +3198,13 @@ struct BusinessPizzaSlice: View {
                     .scaleEffect(0.65)
                     .offset(x: 20, y: 5)
 
-                // Green pepper "tie" ON the pizza (counter-flip since parent is flipped)
-                // NEGATIVE y = lower on screen after flip (toward pizza tip)
-                GreenPepperTie()
-                    .scaleEffect(x: 1, y: -1)
-                    .offset(x: 0, y: -25)
             }
             .scaleEffect(x: 1, y: -1) // Flip vertically
+
+            // Green pepper "tie" OUTSIDE flipped ZStack for direct positioning
+            // Position below mouth (around y=95, toward pizza tip)
+            GreenPepperTie()
+                .offset(x: 0, y: 45)
         }
         .frame(width: 120, height: 140)
     }
