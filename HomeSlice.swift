@@ -3290,29 +3290,32 @@ struct CrustTexture: View {
 
 struct BusinessShirtCollar: View {
     var body: some View {
-        ZStack {
+        HStack(spacing: 6) {
             // Left collar point - white triangle angled outward
-            Path { path in
-                path.move(to: CGPoint(x: 0, y: 0))
-                path.addLine(to: CGPoint(x: -14, y: 12))
-                path.addLine(to: CGPoint(x: -2, y: 14))
-                path.closeSubpath()
-            }
-            .fill(Color.white)
-            .shadow(color: .black.opacity(0.15), radius: 1, x: 0, y: 1)
-            .offset(x: -4, y: 0)
+            CollarPoint()
+                .fill(Color.white)
+                .frame(width: 14, height: 14)
+                .shadow(color: .black.opacity(0.2), radius: 1, x: 0, y: 1)
+                .scaleEffect(x: -1, y: 1) // Mirror for left side
 
             // Right collar point - white triangle angled outward
-            Path { path in
-                path.move(to: CGPoint(x: 0, y: 0))
-                path.addLine(to: CGPoint(x: 14, y: 12))
-                path.addLine(to: CGPoint(x: 2, y: 14))
-                path.closeSubpath()
-            }
-            .fill(Color.white)
-            .shadow(color: .black.opacity(0.15), radius: 1, x: 0, y: 1)
-            .offset(x: 4, y: 0)
+            CollarPoint()
+                .fill(Color.white)
+                .frame(width: 14, height: 14)
+                .shadow(color: .black.opacity(0.2), radius: 1, x: 0, y: 1)
         }
+    }
+}
+
+struct CollarPoint: Shape {
+    func path(in rect: CGRect) -> Path {
+        var path = Path()
+        // Triangle pointing down and outward
+        path.move(to: CGPoint(x: rect.minX, y: rect.minY))
+        path.addLine(to: CGPoint(x: rect.maxX, y: rect.maxY))
+        path.addLine(to: CGPoint(x: rect.minX + 4, y: rect.maxY))
+        path.closeSubpath()
+        return path
     }
 }
 
