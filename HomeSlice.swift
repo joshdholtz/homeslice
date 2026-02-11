@@ -3156,72 +3156,86 @@ struct PizzaSlice: View {
     }
 }
 
-// MARK: - Business Pizza (kawaii but professional)
+// MARK: - Business Pizza (kawaii but professional, flipped with tie)
 struct BusinessPizzaSlice: View {
     var body: some View {
         ZStack {
-            // Cheese (main triangle) - slightly more muted/professional colors
-            PizzaTriangle()
-                .fill(
-                    LinearGradient(
-                        colors: [
-                            Color(red: 0.95, green: 0.82, blue: 0.45),
-                            Color(red: 0.92, green: 0.72, blue: 0.35)
-                        ],
-                        startPoint: .top,
-                        endPoint: .bottom
+            // Pizza base (flipped - crust on top)
+            ZStack {
+                // Cheese (main triangle)
+                PizzaTriangle()
+                    .fill(
+                        LinearGradient(
+                            colors: [
+                                Color(red: 0.95, green: 0.82, blue: 0.45),
+                                Color(red: 0.92, green: 0.72, blue: 0.35)
+                            ],
+                            startPoint: .bottom,
+                            endPoint: .top
+                        )
                     )
-                )
 
-            // Crust
-            CrustShape()
-                .fill(
-                    LinearGradient(
-                        colors: [
-                            Color(red: 0.8, green: 0.6, blue: 0.35),
-                            Color(red: 0.65, green: 0.48, blue: 0.25)
-                        ],
-                        startPoint: .top,
-                        endPoint: .bottom
+                // Crust
+                CrustShape()
+                    .fill(
+                        LinearGradient(
+                            colors: [
+                                Color(red: 0.8, green: 0.6, blue: 0.35),
+                                Color(red: 0.65, green: 0.48, blue: 0.25)
+                            ],
+                            startPoint: .bottom,
+                            endPoint: .top
+                        )
                     )
-                )
 
-            // Pepperoni (fewer, more orderly)
-            Pepperoni()
-                .offset(x: -15, y: 40)
+                // Pepperoni (adjusted for flipped orientation)
+                Pepperoni()
+                    .offset(x: -15, y: 40)
 
-            Pepperoni()
-                .offset(x: 15, y: 45)
+                Pepperoni()
+                    .offset(x: 15, y: 45)
+            }
+            .scaleEffect(x: 1, y: -1) // Flip vertically
 
-            // Tiny bowtie at the bottom
-            BusinessBowtie()
-                .offset(y: 75)
+            // Tie hangs from the point (now at bottom)
+            BusinessTie()
+                .offset(y: 85)
         }
         .frame(width: 120, height: 140)
     }
 }
 
-struct BusinessBowtie: View {
-    let bowtieColor = Color(red: 0.2, green: 0.2, blue: 0.4) // Navy blue
+struct BusinessTie: View {
+    let tieColor = Color(red: 0.15, green: 0.15, blue: 0.35) // Navy blue
 
     var body: some View {
         ZStack {
-            // Left wing
-            Ellipse()
-                .fill(bowtieColor)
-                .frame(width: 14, height: 8)
-                .offset(x: -8)
+            // Tie knot (triangle at top)
+            Path { path in
+                path.move(to: CGPoint(x: 0, y: 0))
+                path.addLine(to: CGPoint(x: -6, y: 8))
+                path.addLine(to: CGPoint(x: 6, y: 8))
+                path.closeSubpath()
+            }
+            .fill(tieColor)
 
-            // Right wing
-            Ellipse()
-                .fill(bowtieColor)
-                .frame(width: 14, height: 8)
-                .offset(x: 8)
+            // Tie body (long triangle)
+            Path { path in
+                path.move(to: CGPoint(x: -5, y: 8))
+                path.addLine(to: CGPoint(x: 5, y: 8))
+                path.addLine(to: CGPoint(x: 2, y: 35))
+                path.addLine(to: CGPoint(x: 0, y: 38))
+                path.addLine(to: CGPoint(x: -2, y: 35))
+                path.closeSubpath()
+            }
+            .fill(tieColor)
 
-            // Center knot
-            Circle()
-                .fill(bowtieColor)
-                .frame(width: 6, height: 6)
+            // Subtle stripe detail
+            Path { path in
+                path.move(to: CGPoint(x: 0, y: 12))
+                path.addLine(to: CGPoint(x: 0, y: 32))
+            }
+            .stroke(Color.white.opacity(0.15), lineWidth: 2)
         }
     }
 }
@@ -3232,11 +3246,7 @@ struct BusinessKawaiiFace: View {
 
     var body: some View {
         ZStack {
-            // Glasses
-            BusinessGlasses()
-                .offset(y: -8)
-
-            // Eyes (behind glasses)
+            // Eyes first (behind glasses)
             HStack(spacing: 22) {
                 // Left eye
                 ZStack {
@@ -3280,26 +3290,20 @@ struct BusinessKawaiiFace: View {
             }
             .offset(y: -5)
 
-            // Small professional smile
-            Path { path in
-                path.move(to: CGPoint(x: -6, y: 12))
-                path.addQuadCurve(
-                    to: CGPoint(x: 6, y: 12),
-                    control: CGPoint(x: 0, y: 16)
-                )
-            }
-            .stroke(Color.black.opacity(0.7), lineWidth: 2)
+            // Glasses on top of eyes
+            BusinessGlasses()
+                .offset(y: -5)
 
-            // Subtle blush (smaller, more professional)
+            // Subtle blush only - no mouth for serious business look
             Circle()
-                .fill(Color.pink.opacity(0.25))
+                .fill(Color.pink.opacity(0.2))
                 .frame(width: 8, height: 8)
-                .offset(x: -18, y: 8)
+                .offset(x: -20, y: 8)
 
             Circle()
-                .fill(Color.pink.opacity(0.25))
+                .fill(Color.pink.opacity(0.2))
                 .frame(width: 8, height: 8)
-                .offset(x: 18, y: 8)
+                .offset(x: 20, y: 8)
         }
     }
 }
