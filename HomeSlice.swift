@@ -3202,8 +3202,8 @@ struct BusinessPizzaSlice: View {
 
             // Tie at the bottom tip of pizza
             BusinessTie()
-                .scaleEffect(1.5)
-                .offset(x: 0, y: 85)
+                .scaleEffect(1.3)
+                .offset(x: 0, y: 75)
         }
         .frame(width: 120, height: 140)
     }
@@ -3213,34 +3213,41 @@ struct BusinessTie: View {
     let tieColor = Color(red: 0.15, green: 0.15, blue: 0.35) // Navy blue
 
     var body: some View {
-        ZStack {
+        VStack(spacing: 0) {
             // Tie knot (small rectangle at top)
             RoundedRectangle(cornerRadius: 2)
                 .fill(tieColor)
-                .frame(width: 10, height: 6)
-                .offset(y: -15)
+                .frame(width: 12, height: 8)
 
             // Tie body (widens then tapers to point)
-            Path { path in
-                // Start below knot
-                path.move(to: CGPoint(x: -4, y: -12))
-                path.addLine(to: CGPoint(x: 4, y: -12))
-                // Widen slightly
-                path.addLine(to: CGPoint(x: 6, y: 0))
-                // Taper to point
-                path.addLine(to: CGPoint(x: 0, y: 20))
-                path.addLine(to: CGPoint(x: -6, y: 0))
-                path.closeSubpath()
-            }
-            .fill(tieColor)
-
-            // Subtle stripe detail
-            Path { path in
-                path.move(to: CGPoint(x: 0, y: -8))
-                path.addLine(to: CGPoint(x: 0, y: 15))
-            }
-            .stroke(Color.white.opacity(0.15), lineWidth: 2)
+            TieBodyShape()
+                .fill(tieColor)
+                .frame(width: 18, height: 35)
+                .overlay(
+                    // Subtle stripe detail
+                    Rectangle()
+                        .fill(Color.white.opacity(0.15))
+                        .frame(width: 2, height: 28)
+                        .offset(y: -2)
+                )
         }
+    }
+}
+
+struct TieBodyShape: Shape {
+    func path(in rect: CGRect) -> Path {
+        var path = Path()
+        let midX = rect.midX
+        // Start narrow at top
+        path.move(to: CGPoint(x: midX - 5, y: 0))
+        path.addLine(to: CGPoint(x: midX + 5, y: 0))
+        // Widen
+        path.addLine(to: CGPoint(x: midX + 8, y: rect.height * 0.3))
+        // Taper to point
+        path.addLine(to: CGPoint(x: midX, y: rect.height))
+        path.addLine(to: CGPoint(x: midX - 8, y: rect.height * 0.3))
+        path.closeSubpath()
+        return path
     }
 }
 
