@@ -3250,8 +3250,9 @@ struct CheeseTexture: View {
 }
 
 struct GreenPepperTie: View {
-    let pepperGreen = Color(red: 0.2, green: 0.55, blue: 0.2)
-    let pepperHighlight = Color(red: 0.35, green: 0.7, blue: 0.3)
+    // Brighter, more kawaii green
+    let pepperGreen = Color(red: 0.3, green: 0.65, blue: 0.35)
+    let pepperHighlight = Color(red: 0.5, green: 0.8, blue: 0.45)
 
     var body: some View {
         VStack(spacing: -2) {
@@ -3328,27 +3329,27 @@ struct BusinessKawaiiFace: View {
     var body: some View {
         ZStack {
             // Eyes first (behind glasses) - mood-based like original pizza
-            // Scaled down and spaced to fit behind glasses (lenses at x: ±14)
-            HStack(spacing: 8) {
+            // Slightly bigger for cuteness
+            HStack(spacing: 10) {
                 KawaiiEye(isBlinking: isBlinking, mood: mood)
-                    .scaleEffect(0.7)
+                    .scaleEffect(0.8)
                 KawaiiEye(isBlinking: isBlinking, mood: mood, isRight: true)
-                    .scaleEffect(0.7)
+                    .scaleEffect(0.8)
             }
             .offset(y: -5)
 
-            // Subtle blush
+            // Cute rosy blush - more visible!
             Circle()
-                .fill(Color.pink.opacity(0.25))
-                .frame(width: 8, height: 8)
-                .offset(x: -20, y: 10)
+                .fill(Color.pink.opacity(0.45))
+                .frame(width: 12, height: 12)
+                .offset(x: -22, y: 12)
 
             Circle()
-                .fill(Color.pink.opacity(0.25))
-                .frame(width: 8, height: 8)
-                .offset(x: 20, y: 10)
+                .fill(Color.pink.opacity(0.45))
+                .frame(width: 12, height: 12)
+                .offset(x: 22, y: 12)
 
-            // Glasses on top (in front of eyes)
+            // Cute round glasses on top
             BusinessGlasses()
                 .offset(y: -5)
 
@@ -3360,42 +3361,54 @@ struct BusinessKawaiiFace: View {
 }
 
 struct BusinessGlasses: View {
-    let frameColor = Color(red: 0.25, green: 0.25, blue: 0.3) // Dark gray
+    // Softer rose-gold/brown color for cute frames
+    let frameColor = Color(red: 0.55, green: 0.35, blue: 0.35)
 
     var body: some View {
         ZStack {
-            // Left lens frame
-            RoundedRectangle(cornerRadius: 4)
-                .stroke(frameColor, lineWidth: 2)
-                .frame(width: 20, height: 16)
-                .offset(x: -14)
+            // Left lens - round for cuteness!
+            Circle()
+                .stroke(frameColor, lineWidth: 2.5)
+                .frame(width: 18, height: 18)
+                .offset(x: -12)
 
-            // Right lens frame
-            RoundedRectangle(cornerRadius: 4)
-                .stroke(frameColor, lineWidth: 2)
-                .frame(width: 20, height: 16)
-                .offset(x: 14)
+            // Right lens - round for cuteness!
+            Circle()
+                .stroke(frameColor, lineWidth: 2.5)
+                .frame(width: 18, height: 18)
+                .offset(x: 12)
 
-            // Bridge
+            // Cute curved bridge
             Path { path in
-                path.move(to: CGPoint(x: -4, y: 0))
+                path.move(to: CGPoint(x: -3, y: 0))
                 path.addQuadCurve(
-                    to: CGPoint(x: 4, y: 0),
-                    control: CGPoint(x: 0, y: -3)
+                    to: CGPoint(x: 3, y: 0),
+                    control: CGPoint(x: 0, y: -4)
                 )
             }
             .stroke(frameColor, lineWidth: 2)
 
-            // Lens shine (subtle)
-            RoundedRectangle(cornerRadius: 2)
-                .fill(Color.white.opacity(0.2))
-                .frame(width: 6, height: 3)
-                .offset(x: -16, y: -4)
+            // Sparkly lens shine!
+            Circle()
+                .fill(Color.white.opacity(0.4))
+                .frame(width: 5, height: 5)
+                .offset(x: -15, y: -5)
 
-            RoundedRectangle(cornerRadius: 2)
-                .fill(Color.white.opacity(0.2))
-                .frame(width: 6, height: 3)
-                .offset(x: 12, y: -4)
+            Circle()
+                .fill(Color.white.opacity(0.4))
+                .frame(width: 5, height: 5)
+                .offset(x: 9, y: -5)
+
+            // Tiny extra sparkle
+            Circle()
+                .fill(Color.white.opacity(0.25))
+                .frame(width: 2, height: 2)
+                .offset(x: -12, y: -2)
+
+            Circle()
+                .fill(Color.white.opacity(0.25))
+                .frame(width: 2, height: 2)
+                .offset(x: 12, y: -2)
         }
     }
 }
