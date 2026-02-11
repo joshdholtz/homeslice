@@ -2444,7 +2444,7 @@ struct ResponseBubble: View {
                         .frame(maxWidth: .infinity, alignment: .leading)
                         .padding(.trailing, 4)
                 }
-                .frame(maxHeight: 160)
+                .frame(maxHeight: 120)
 
                 // Footer with actions
                 HStack(spacing: 12) {
@@ -2506,8 +2506,8 @@ struct ResponseBubble: View {
             .padding(.top, 10)
             .padding(.trailing, 8)
         }
-        .frame(width: 280)
-        .frame(maxHeight: 220)
+        .frame(width: 340)
+        .frame(maxHeight: 180)
         .fixedSize(horizontal: false, vertical: true)
         .background(Color.white)
         .clipShape(RoundedRectangle(cornerRadius: 12))
