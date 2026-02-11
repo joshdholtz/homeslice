@@ -2250,16 +2250,18 @@ struct SpeechBubble: View {
     }
 
     var body: some View {
-        Text(message)
-            .font(.system(size: 12, weight: .bold))
-            .padding(.horizontal, 8)
-            .padding(.vertical, 4)
-            .background(
-                RoundedRectangle(cornerRadius: 8)
-                    .fill(.white)
-                    .shadow(radius: 2)
-            )
-            .offset(y: -5)
+        if !message.isEmpty {
+            Text(message)
+                .font(.system(size: 12, weight: .bold))
+                .padding(.horizontal, 8)
+                .padding(.vertical, 4)
+                .background(
+                    RoundedRectangle(cornerRadius: 8)
+                        .fill(.white)
+                        .shadow(radius: 2)
+                )
+                .offset(y: -5)
+        }
     }
 }
 
@@ -3287,47 +3289,10 @@ struct BusinessKawaiiFace: View {
 
     var body: some View {
         ZStack {
-            // Eyes first (behind glasses)
-            HStack(spacing: 22) {
-                // Left eye
-                ZStack {
-                    Ellipse()
-                        .fill(Color.white)
-                        .frame(width: 16, height: isBlinking ? 2 : 18)
-
-                    if !isBlinking {
-                        // Pupil
-                        Circle()
-                            .fill(Color.black)
-                            .frame(width: 8, height: 8)
-                            .offset(y: 2)
-
-                        // Highlight
-                        Circle()
-                            .fill(Color.white)
-                            .frame(width: 4, height: 4)
-                            .offset(x: -2, y: -1)
-                    }
-                }
-
-                // Right eye
-                ZStack {
-                    Ellipse()
-                        .fill(Color.white)
-                        .frame(width: 16, height: isBlinking ? 2 : 18)
-
-                    if !isBlinking {
-                        Circle()
-                            .fill(Color.black)
-                            .frame(width: 8, height: 8)
-                            .offset(y: 2)
-
-                        Circle()
-                            .fill(Color.white)
-                            .frame(width: 4, height: 4)
-                            .offset(x: -2, y: -1)
-                    }
-                }
+            // Eyes first (behind glasses) - mood-based like original pizza
+            HStack(spacing: 20) {
+                KawaiiEye(isBlinking: isBlinking, mood: mood)
+                KawaiiEye(isBlinking: isBlinking, mood: mood, isRight: true)
             }
             .offset(y: -5)
 
