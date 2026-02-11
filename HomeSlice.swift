@@ -2387,20 +2387,15 @@ struct ResponseBubble: View {
 
 
     private func parseMarkdown(_ text: String) -> AttributedString {
-        // Test: "**bold** and *italic*" should render styled
-        print("[MD] Parsing: \(text.prefix(100))...")
         do {
             var result = try AttributedString(markdown: text, options: .init(interpretedSyntax: .inlineOnlyPreservingWhitespace))
-            // Debug: check if any styling exists
-            for run in result.runs {
-                if run.inlinePresentationIntent != nil {
-                    print("[MD] Found styled run: \(run.inlinePresentationIntent!)")
-                }
-            }
+            // Set base color without overriding markdown link colors
+            result.foregroundColor = .black
             return result
         } catch {
-            print("[MD] Parse error: \(error)")
-            return AttributedString(text)
+            var plain = AttributedString(text)
+            plain.foregroundColor = .black
+            return plain
         }
     }
 
@@ -2412,6 +2407,7 @@ struct ResponseBubble: View {
                 ScrollView {
                     Text(parseMarkdown(message))
                         .font(.system(size: 14))
+                        .foregroundColor(.primary)
                         .multilineTextAlignment(.leading)
                         .textSelection(.enabled)
                         .fixedSize(horizontal: false, vertical: true)
