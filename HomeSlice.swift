@@ -3396,54 +3396,38 @@ struct BusinessKawaiiFace: View {
 }
 
 struct BusinessGlasses: View {
-    // Softer rose-gold/brown color for cute frames
-    let frameColor = Color(red: 0.55, green: 0.35, blue: 0.35)
+    // Professional dark frame color
+    let frameColor = Color(red: 0.2, green: 0.2, blue: 0.25)
 
     var body: some View {
         ZStack {
-            // Left lens - round for cuteness!
-            Circle()
+            // Left lens - square/rectangular for business look!
+            RoundedRectangle(cornerRadius: 3)
                 .stroke(frameColor, lineWidth: 2.5)
-                .frame(width: 22, height: 22)
+                .frame(width: 22, height: 18)
                 .offset(x: -14)
 
-            // Right lens - round for cuteness!
-            Circle()
+            // Right lens - square/rectangular for business look!
+            RoundedRectangle(cornerRadius: 3)
                 .stroke(frameColor, lineWidth: 2.5)
-                .frame(width: 22, height: 22)
+                .frame(width: 22, height: 18)
                 .offset(x: 14)
 
-            // Cute curved bridge
-            Path { path in
-                path.move(to: CGPoint(x: -3, y: 0))
-                path.addQuadCurve(
-                    to: CGPoint(x: 3, y: 0),
-                    control: CGPoint(x: 0, y: -4)
-                )
-            }
-            .stroke(frameColor, lineWidth: 2)
+            // Straight professional bridge
+            Rectangle()
+                .fill(frameColor)
+                .frame(width: 6, height: 2)
 
-            // Sparkly lens shine!
-            Circle()
-                .fill(Color.white.opacity(0.4))
-                .frame(width: 6, height: 6)
-                .offset(x: -18, y: -6)
+            // Subtle lens shine
+            RoundedRectangle(cornerRadius: 1)
+                .fill(Color.white.opacity(0.3))
+                .frame(width: 5, height: 3)
+                .offset(x: -18, y: -5)
 
-            Circle()
-                .fill(Color.white.opacity(0.4))
-                .frame(width: 6, height: 6)
-                .offset(x: 10, y: -6)
-
-            // Tiny extra sparkle
-            Circle()
-                .fill(Color.white.opacity(0.25))
-                .frame(width: 3, height: 3)
-                .offset(x: -14, y: -2)
-
-            Circle()
-                .fill(Color.white.opacity(0.25))
-                .frame(width: 2, height: 2)
-                .offset(x: 12, y: -2)
+            RoundedRectangle(cornerRadius: 1)
+                .fill(Color.white.opacity(0.3))
+                .frame(width: 5, height: 3)
+                .offset(x: 10, y: -5)
         }
     }
 }
@@ -3493,12 +3477,12 @@ struct CrustShape: Shape {
     }
 }
 
-// Business Pizza has puffy cloud-like crust
+// Business Pizza has neat slicked-back crust like a professional haircut
 struct BusinessCrustShape: Shape {
     func path(in rect: CGRect) -> Path {
         var path = Path()
         let innerY: CGFloat = rect.height - 25  // Inner edge (meets cheese)
-        let outerY: CGFloat = rect.height - 3   // Outer edge (puffy top)
+        let outerY: CGFloat = rect.height - 5   // Outer edge
         let leftX: CGFloat = 12
         let rightX: CGFloat = rect.width - 12
 
@@ -3511,61 +3495,52 @@ struct BusinessCrustShape: Shape {
             control: CGPoint(x: rect.midX, y: innerY + 8)
         )
 
-        // Right side down to outer edge
-        path.addLine(to: CGPoint(x: rightX + 3, y: outerY - 5))
+        // Right side curves down smoothly
+        path.addQuadCurve(
+            to: CGPoint(x: rightX + 5, y: outerY),
+            control: CGPoint(x: rightX + 8, y: innerY + 5)
+        )
 
-        // OUTER edge - puffy cloud bumps!
-        let numBumps = 4
-        let bumpWidth = (rightX - leftX + 6) / CGFloat(numBumps)
+        // Outer edge - neat swooped business style, slightly higher on one side
+        path.addQuadCurve(
+            to: CGPoint(x: rect.midX, y: outerY + 6),
+            control: CGPoint(x: rightX - 15, y: outerY + 10)
+        )
+        path.addQuadCurve(
+            to: CGPoint(x: leftX - 5, y: outerY + 2),
+            control: CGPoint(x: leftX + 15, y: outerY + 8)
+        )
 
-        for i in (0..<numBumps).reversed() {
-            let endX = leftX - 3 + CGFloat(i) * bumpWidth
-            let startX = endX + bumpWidth
-            let midX = (startX + endX) / 2
-            let bumpHeight: CGFloat = [10, 12, 11, 10][i]
+        // Left side curves back up
+        path.addQuadCurve(
+            to: CGPoint(x: leftX, y: innerY),
+            control: CGPoint(x: leftX - 8, y: innerY + 5)
+        )
 
-            path.addQuadCurve(
-                to: CGPoint(x: endX, y: outerY - 5),
-                control: CGPoint(x: midX, y: outerY + bumpHeight)
-            )
-        }
-
-        // Left side back up to inner edge
-        path.addLine(to: CGPoint(x: leftX, y: innerY))
         path.closeSubpath()
-
         return path
     }
 }
 
-// Golden highlight on outer puffy bumps
+// Sleek highlight for business crust
 struct BusinessCrustHighlight: View {
     var body: some View {
         Canvas { context, size in
-            let outerY: CGFloat = size.height - 3
-            let leftX: CGFloat = 12
-            let rightX: CGFloat = size.width - 12
-            let numBumps = 4
-            let bumpWidth = (rightX - leftX + 6) / CGFloat(numBumps)
-            let bumpHeights: [CGFloat] = [10, 12, 11, 10]
+            let outerY: CGFloat = size.height - 5
 
-            // Draw highlight on top of each puffy bump
-            for i in 0..<numBumps {
-                let startX = leftX - 3 + CGFloat(i) * bumpWidth
-                let midX = startX + bumpWidth / 2
-                let bumpPeak = outerY + bumpHeights[i]
+            // Single sleek highlight stripe across the crust
+            var highlightPath = Path()
+            highlightPath.move(to: CGPoint(x: 20, y: outerY + 2))
+            highlightPath.addQuadCurve(
+                to: CGPoint(x: size.width - 20, y: outerY + 4),
+                control: CGPoint(x: size.width / 2, y: outerY + 7)
+            )
 
-                let highlightRect = CGRect(
-                    x: midX - 5,
-                    y: bumpPeak - 3,
-                    width: 10,
-                    height: 5
-                )
-                context.fill(
-                    Ellipse().path(in: highlightRect),
-                    with: .color(Color.white.opacity(0.35))
-                )
-            }
+            context.stroke(
+                highlightPath,
+                with: .color(Color.white.opacity(0.35)),
+                lineWidth: 3
+            )
         }
     }
 }
