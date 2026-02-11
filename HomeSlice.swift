@@ -3189,21 +3189,21 @@ struct BusinessPizzaSlice: View {
                     )
 
                 // Pepperoni as cheeks (positioned BELOW the eyes)
-                // After flip: frame_Y = 70 - internal_Y, so y: 0 → frame Y = 70
+                // After flip: internal y=10 → frame Y≈60, y=5 → frame Y≈65
                 Pepperoni()
-                    .scaleEffect(0.75)
-                    .offset(x: -28, y: 0)
+                    .scaleEffect(0.7)
+                    .offset(x: -18, y: 8)
 
                 Pepperoni()
-                    .scaleEffect(0.75)
-                    .offset(x: 28, y: 0)
+                    .scaleEffect(0.65)
+                    .offset(x: 20, y: 5)
             }
             .scaleEffect(x: 1, y: -1) // Flip vertically
 
-            // Tie hangs from the point (now at bottom), centered and bigger
+            // Tie at the bottom tip of pizza
             BusinessTie()
-                .scaleEffect(1.8)
-                .offset(x: 0, y: 55)
+                .scaleEffect(1.5)
+                .offset(x: 0, y: 85)
         }
         .frame(width: 120, height: 140)
     }
@@ -3214,30 +3214,30 @@ struct BusinessTie: View {
 
     var body: some View {
         ZStack {
-            // Tie knot (triangle at top)
-            Path { path in
-                path.move(to: CGPoint(x: 0, y: 0))
-                path.addLine(to: CGPoint(x: -6, y: 8))
-                path.addLine(to: CGPoint(x: 6, y: 8))
-                path.closeSubpath()
-            }
-            .fill(tieColor)
+            // Tie knot (small rectangle at top)
+            RoundedRectangle(cornerRadius: 2)
+                .fill(tieColor)
+                .frame(width: 10, height: 6)
+                .offset(y: -15)
 
-            // Tie body (long triangle)
+            // Tie body (widens then tapers to point)
             Path { path in
-                path.move(to: CGPoint(x: -5, y: 8))
-                path.addLine(to: CGPoint(x: 5, y: 8))
-                path.addLine(to: CGPoint(x: 2, y: 35))
-                path.addLine(to: CGPoint(x: 0, y: 38))
-                path.addLine(to: CGPoint(x: -2, y: 35))
+                // Start below knot
+                path.move(to: CGPoint(x: -4, y: -12))
+                path.addLine(to: CGPoint(x: 4, y: -12))
+                // Widen slightly
+                path.addLine(to: CGPoint(x: 6, y: 0))
+                // Taper to point
+                path.addLine(to: CGPoint(x: 0, y: 20))
+                path.addLine(to: CGPoint(x: -6, y: 0))
                 path.closeSubpath()
             }
             .fill(tieColor)
 
             // Subtle stripe detail
             Path { path in
-                path.move(to: CGPoint(x: 0, y: 12))
-                path.addLine(to: CGPoint(x: 0, y: 32))
+                path.move(to: CGPoint(x: 0, y: -8))
+                path.addLine(to: CGPoint(x: 0, y: 15))
             }
             .stroke(Color.white.opacity(0.15), lineWidth: 2)
         }
@@ -3250,11 +3250,7 @@ struct BusinessKawaiiFace: View {
 
     var body: some View {
         ZStack {
-            // Glasses first (behind eyes)
-            BusinessGlasses()
-                .offset(y: -5)
-
-            // Eyes on top of glasses
+            // Eyes first (behind glasses)
             HStack(spacing: 22) {
                 // Left eye
                 ZStack {
@@ -3318,6 +3314,10 @@ struct BusinessKawaiiFace: View {
                 .fill(Color.pink.opacity(0.25))
                 .frame(width: 8, height: 8)
                 .offset(x: 20, y: 10)
+
+            // Glasses on top (in front of eyes)
+            BusinessGlasses()
+                .offset(y: -5)
         }
     }
 }
