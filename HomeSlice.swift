@@ -3290,20 +3290,46 @@ struct CrustTexture: View {
 
 struct BusinessShirtCollar: View {
     var body: some View {
-        HStack(spacing: 6) {
-            // Left collar point - white triangle angled outward
-            CollarPoint()
+        ZStack {
+            // Shirt body - visible on sides of tie
+            ShirtBody()
                 .fill(Color.white)
-                .frame(width: 14, height: 14)
-                .shadow(color: .black.opacity(0.2), radius: 1, x: 0, y: 1)
-                .scaleEffect(x: -1, y: 1) // Mirror for left side
+                .frame(width: 50, height: 45)
+                .shadow(color: .black.opacity(0.1), radius: 1, x: 0, y: 1)
+                .offset(y: 8)
 
-            // Right collar point - white triangle angled outward
-            CollarPoint()
-                .fill(Color.white)
-                .frame(width: 14, height: 14)
-                .shadow(color: .black.opacity(0.2), radius: 1, x: 0, y: 1)
+            // Collar points on top
+            HStack(spacing: 10) {
+                // Left collar point
+                CollarPoint()
+                    .fill(Color.white)
+                    .frame(width: 18, height: 18)
+                    .shadow(color: .black.opacity(0.25), radius: 1, x: -1, y: 1)
+                    .scaleEffect(x: -1, y: 1)
+
+                // Right collar point
+                CollarPoint()
+                    .fill(Color.white)
+                    .frame(width: 18, height: 18)
+                    .shadow(color: .black.opacity(0.25), radius: 1, x: 1, y: 1)
+            }
         }
+    }
+}
+
+struct ShirtBody: Shape {
+    func path(in rect: CGRect) -> Path {
+        var path = Path()
+        // V-neck shirt shape that shows on sides of tie
+        let midX = rect.midX
+        path.move(to: CGPoint(x: midX - 8, y: 0))
+        path.addLine(to: CGPoint(x: rect.minX, y: rect.maxY * 0.3))
+        path.addLine(to: CGPoint(x: rect.minX, y: rect.maxY))
+        path.addLine(to: CGPoint(x: rect.maxX, y: rect.maxY))
+        path.addLine(to: CGPoint(x: rect.maxX, y: rect.maxY * 0.3))
+        path.addLine(to: CGPoint(x: midX + 8, y: 0))
+        path.closeSubpath()
+        return path
     }
 }
 
