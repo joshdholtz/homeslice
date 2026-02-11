@@ -17,6 +17,7 @@ enum PizzaMood: String, CaseIterable {
 
 enum CompanionType: String, CaseIterable {
     case pizza = "Pizza"
+    case businessPizza = "Business Pizza"
     case cat = "Cat"
     case jacob = "Jacob"
 }
@@ -1915,6 +1916,12 @@ struct KawaiiPizzaView: View {
                         KawaiiFace(isBlinking: isBlinking, mood: pizzaState.mood)
                             .offset(y: 15)
                             .scaleEffect(breatheScale)
+                    case .businessPizza:
+                        BusinessPizzaSlice()
+                            .scaleEffect(breatheScale)
+                        BusinessKawaiiFace(isBlinking: isBlinking, mood: pizzaState.mood)
+                            .offset(y: 15)
+                            .scaleEffect(breatheScale)
                     case .cat:
                         KawaiiCat(isBlinking: isBlinking, mood: pizzaState.mood)
                             .scaleEffect(breatheScale)
@@ -3146,6 +3153,195 @@ struct PizzaSlice: View {
                 .offset(x: 5, y: 15)
         }
         .frame(width: 120, height: 140)
+    }
+}
+
+// MARK: - Business Pizza (kawaii but professional)
+struct BusinessPizzaSlice: View {
+    var body: some View {
+        ZStack {
+            // Cheese (main triangle) - slightly more muted/professional colors
+            PizzaTriangle()
+                .fill(
+                    LinearGradient(
+                        colors: [
+                            Color(red: 0.95, green: 0.82, blue: 0.45),
+                            Color(red: 0.92, green: 0.72, blue: 0.35)
+                        ],
+                        startPoint: .top,
+                        endPoint: .bottom
+                    )
+                )
+
+            // Crust
+            CrustShape()
+                .fill(
+                    LinearGradient(
+                        colors: [
+                            Color(red: 0.8, green: 0.6, blue: 0.35),
+                            Color(red: 0.65, green: 0.48, blue: 0.25)
+                        ],
+                        startPoint: .top,
+                        endPoint: .bottom
+                    )
+                )
+
+            // Pepperoni (fewer, more orderly)
+            Pepperoni()
+                .offset(x: -15, y: 40)
+
+            Pepperoni()
+                .offset(x: 15, y: 45)
+
+            // Tiny bowtie at the bottom
+            BusinessBowtie()
+                .offset(y: 75)
+        }
+        .frame(width: 120, height: 140)
+    }
+}
+
+struct BusinessBowtie: View {
+    let bowtieColor = Color(red: 0.2, green: 0.2, blue: 0.4) // Navy blue
+
+    var body: some View {
+        ZStack {
+            // Left wing
+            Ellipse()
+                .fill(bowtieColor)
+                .frame(width: 14, height: 8)
+                .offset(x: -8)
+
+            // Right wing
+            Ellipse()
+                .fill(bowtieColor)
+                .frame(width: 14, height: 8)
+                .offset(x: 8)
+
+            // Center knot
+            Circle()
+                .fill(bowtieColor)
+                .frame(width: 6, height: 6)
+        }
+    }
+}
+
+struct BusinessKawaiiFace: View {
+    var isBlinking: Bool
+    var mood: PizzaMood
+
+    var body: some View {
+        ZStack {
+            // Glasses
+            BusinessGlasses()
+                .offset(y: -8)
+
+            // Eyes (behind glasses)
+            HStack(spacing: 22) {
+                // Left eye
+                ZStack {
+                    Ellipse()
+                        .fill(Color.white)
+                        .frame(width: 16, height: isBlinking ? 2 : 18)
+
+                    if !isBlinking {
+                        // Pupil
+                        Circle()
+                            .fill(Color.black)
+                            .frame(width: 8, height: 8)
+                            .offset(y: 2)
+
+                        // Highlight
+                        Circle()
+                            .fill(Color.white)
+                            .frame(width: 4, height: 4)
+                            .offset(x: -2, y: -1)
+                    }
+                }
+
+                // Right eye
+                ZStack {
+                    Ellipse()
+                        .fill(Color.white)
+                        .frame(width: 16, height: isBlinking ? 2 : 18)
+
+                    if !isBlinking {
+                        Circle()
+                            .fill(Color.black)
+                            .frame(width: 8, height: 8)
+                            .offset(y: 2)
+
+                        Circle()
+                            .fill(Color.white)
+                            .frame(width: 4, height: 4)
+                            .offset(x: -2, y: -1)
+                    }
+                }
+            }
+            .offset(y: -5)
+
+            // Small professional smile
+            Path { path in
+                path.move(to: CGPoint(x: -6, y: 12))
+                path.addQuadCurve(
+                    to: CGPoint(x: 6, y: 12),
+                    control: CGPoint(x: 0, y: 16)
+                )
+            }
+            .stroke(Color.black.opacity(0.7), lineWidth: 2)
+
+            // Subtle blush (smaller, more professional)
+            Circle()
+                .fill(Color.pink.opacity(0.25))
+                .frame(width: 8, height: 8)
+                .offset(x: -18, y: 8)
+
+            Circle()
+                .fill(Color.pink.opacity(0.25))
+                .frame(width: 8, height: 8)
+                .offset(x: 18, y: 8)
+        }
+    }
+}
+
+struct BusinessGlasses: View {
+    let frameColor = Color(red: 0.25, green: 0.25, blue: 0.3) // Dark gray
+
+    var body: some View {
+        ZStack {
+            // Left lens frame
+            RoundedRectangle(cornerRadius: 4)
+                .stroke(frameColor, lineWidth: 2)
+                .frame(width: 20, height: 16)
+                .offset(x: -14)
+
+            // Right lens frame
+            RoundedRectangle(cornerRadius: 4)
+                .stroke(frameColor, lineWidth: 2)
+                .frame(width: 20, height: 16)
+                .offset(x: 14)
+
+            // Bridge
+            Path { path in
+                path.move(to: CGPoint(x: -4, y: 0))
+                path.addQuadCurve(
+                    to: CGPoint(x: 4, y: 0),
+                    control: CGPoint(x: 0, y: -3)
+                )
+            }
+            .stroke(frameColor, lineWidth: 2)
+
+            // Lens shine (subtle)
+            RoundedRectangle(cornerRadius: 2)
+                .fill(Color.white.opacity(0.2))
+                .frame(width: 6, height: 3)
+                .offset(x: -16, y: -4)
+
+            RoundedRectangle(cornerRadius: 2)
+                .fill(Color.white.opacity(0.2))
+                .frame(width: 6, height: 3)
+                .offset(x: 12, y: -4)
+        }
     }
 }
 
