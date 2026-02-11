@@ -1285,7 +1285,7 @@ class AppDelegate: NSObject, NSApplicationDelegate {
 
     func setupPanel() {
         // Create floating panel (huge to test transparent click-through)
-        let panelSize = NSSize(width: 600, height: 300)
+        let panelSize = NSSize(width: 750, height: 300)
         panel = NSPanel(
             contentRect: NSRect(
                 x: NSScreen.main!.frame.midX - panelSize.width / 2,
@@ -1565,7 +1565,7 @@ class AppDelegate: NSObject, NSApplicationDelegate {
 
             // Force recreate the window content
             panel.alphaValue = 1.0
-            panel.setFrame(NSRect(x: x, y: y, width: 600, height: 300), display: true)
+            panel.setFrame(NSRect(x: x, y: y, width: 750, height: 300), display: true)
             panel.orderFrontRegardless()
             panel.makeKeyAndOrderFront(nil)
 
