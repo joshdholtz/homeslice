@@ -3475,11 +3475,27 @@ struct CrustShape: Shape {
         let leftX: CGFloat = 10
         let rightX: CGFloat = rect.width - 10
 
+        // Start at left side
         path.move(to: CGPoint(x: leftX + 5, y: baseY))
-        path.addQuadCurve(
-            to: CGPoint(x: rightX - 5, y: baseY),
-            control: CGPoint(x: rect.midX, y: baseY + 10)
-        )
+
+        // Puffy bumpy top edge - multiple small bumps like risen dough
+        let numBumps = 5
+        let bumpWidth = (rightX - leftX - 10) / CGFloat(numBumps)
+
+        for i in 0..<numBumps {
+            let startX = leftX + 5 + CGFloat(i) * bumpWidth
+            let endX = startX + bumpWidth
+            let midX = startX + bumpWidth / 2
+            // Vary bump heights slightly for organic look
+            let bumpHeight: CGFloat = [8, 10, 9, 11, 8][i]
+
+            path.addQuadCurve(
+                to: CGPoint(x: endX, y: baseY),
+                control: CGPoint(x: midX, y: baseY + bumpHeight)
+            )
+        }
+
+        // Bottom edge curves back
         path.addQuadCurve(
             to: CGPoint(x: leftX + 5, y: baseY),
             control: CGPoint(x: rect.midX, y: bottomY + 5)
