@@ -3493,70 +3493,77 @@ struct CrustShape: Shape {
     }
 }
 
-// Business Pizza has puffy bumpy crust
+// Business Pizza has puffy cloud-like crust
 struct BusinessCrustShape: Shape {
     func path(in rect: CGRect) -> Path {
         var path = Path()
-        let baseY: CGFloat = rect.height - 25
-        let bottomY: CGFloat = rect.height - 5
-        let leftX: CGFloat = 10
-        let rightX: CGFloat = rect.width - 10
+        let innerY: CGFloat = rect.height - 25  // Inner edge (meets cheese)
+        let outerY: CGFloat = rect.height - 3   // Outer edge (puffy top)
+        let leftX: CGFloat = 12
+        let rightX: CGFloat = rect.width - 12
 
-        path.move(to: CGPoint(x: leftX + 5, y: baseY))
+        // Start at inner left
+        path.move(to: CGPoint(x: leftX, y: innerY))
 
-        // Puffy bumpy top edge - multiple small bumps like risen dough
-        let numBumps = 5
-        let bumpWidth = (rightX - leftX - 10) / CGFloat(numBumps)
+        // Inner edge (smooth curve where crust meets cheese)
+        path.addQuadCurve(
+            to: CGPoint(x: rightX, y: innerY),
+            control: CGPoint(x: rect.midX, y: innerY + 8)
+        )
 
-        for i in 0..<numBumps {
-            let startX = leftX + 5 + CGFloat(i) * bumpWidth
-            let endX = startX + bumpWidth
-            let midX = startX + bumpWidth / 2
-            let bumpHeight: CGFloat = [8, 10, 9, 11, 8][i]
+        // Right side down to outer edge
+        path.addLine(to: CGPoint(x: rightX + 3, y: outerY - 5))
+
+        // OUTER edge - puffy cloud bumps!
+        let numBumps = 4
+        let bumpWidth = (rightX - leftX + 6) / CGFloat(numBumps)
+
+        for i in (0..<numBumps).reversed() {
+            let endX = leftX - 3 + CGFloat(i) * bumpWidth
+            let startX = endX + bumpWidth
+            let midX = (startX + endX) / 2
+            let bumpHeight: CGFloat = [10, 12, 11, 10][i]
 
             path.addQuadCurve(
-                to: CGPoint(x: endX, y: baseY),
-                control: CGPoint(x: midX, y: baseY + bumpHeight)
+                to: CGPoint(x: endX, y: outerY - 5),
+                control: CGPoint(x: midX, y: outerY + bumpHeight)
             )
         }
 
-        // Bottom edge curves back
-        path.addQuadCurve(
-            to: CGPoint(x: leftX + 5, y: baseY),
-            control: CGPoint(x: rect.midX, y: bottomY + 5)
-        )
+        // Left side back up to inner edge
+        path.addLine(to: CGPoint(x: leftX, y: innerY))
         path.closeSubpath()
 
         return path
     }
 }
 
-// Golden highlight on top of crust bumps for 3D effect
+// Golden highlight on outer puffy bumps
 struct BusinessCrustHighlight: View {
     var body: some View {
         Canvas { context, size in
-            let baseY: CGFloat = size.height - 25
-            let leftX: CGFloat = 10
-            let rightX: CGFloat = size.width - 10
-            let numBumps = 5
-            let bumpWidth = (rightX - leftX - 10) / CGFloat(numBumps)
-            let bumpHeights: [CGFloat] = [8, 10, 9, 11, 8]
+            let outerY: CGFloat = size.height - 3
+            let leftX: CGFloat = 12
+            let rightX: CGFloat = size.width - 12
+            let numBumps = 4
+            let bumpWidth = (rightX - leftX + 6) / CGFloat(numBumps)
+            let bumpHeights: [CGFloat] = [10, 12, 11, 10]
 
-            // Draw highlight arc on top of each bump
+            // Draw highlight on top of each puffy bump
             for i in 0..<numBumps {
-                let startX = leftX + 5 + CGFloat(i) * bumpWidth
+                let startX = leftX - 3 + CGFloat(i) * bumpWidth
                 let midX = startX + bumpWidth / 2
-                let bumpTop = baseY + bumpHeights[i]
+                let bumpPeak = outerY + bumpHeights[i]
 
                 let highlightRect = CGRect(
-                    x: midX - 6,
-                    y: bumpTop - 2,
-                    width: 12,
-                    height: 4
+                    x: midX - 5,
+                    y: bumpPeak - 3,
+                    width: 10,
+                    height: 5
                 )
                 context.fill(
                     Ellipse().path(in: highlightRect),
-                    with: .color(Color.white.opacity(0.3))
+                    with: .color(Color.white.opacity(0.35))
                 )
             }
         }
