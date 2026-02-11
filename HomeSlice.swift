@@ -3290,9 +3290,12 @@ struct BusinessKawaiiFace: View {
     var body: some View {
         ZStack {
             // Eyes first (behind glasses) - mood-based like original pizza
-            HStack(spacing: 20) {
+            // Scaled down and spaced to fit behind glasses (lenses at x: ±14)
+            HStack(spacing: 28) {
                 KawaiiEye(isBlinking: isBlinking, mood: mood)
+                    .scaleEffect(0.7)
                 KawaiiEye(isBlinking: isBlinking, mood: mood, isRight: true)
+                    .scaleEffect(0.7)
             }
             .offset(y: -5)
 
