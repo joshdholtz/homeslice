@@ -3177,6 +3177,14 @@ struct BusinessPizzaSlice: View {
                         )
                     )
 
+                // Subtle cheese texture (melted bubbles)
+                PizzaTriangle()
+                    .fill(.clear)
+                    .overlay(
+                        CheeseTexture()
+                            .clipShape(PizzaTriangle())
+                    )
+
                 // Crust
                 CrustShape()
                     .fill(
@@ -3208,6 +3216,34 @@ struct BusinessPizzaSlice: View {
                 .offset(x: 0, y: 32)
         }
         .frame(width: 120, height: 140)
+    }
+}
+
+struct CheeseTexture: View {
+    var body: some View {
+        Canvas { context, size in
+            // Scattered subtle cheese bubbles/highlights
+            let spots: [(x: CGFloat, y: CGFloat, r: CGFloat, opacity: Double)] = [
+                (30, 50, 3, 0.15), (50, 70, 2.5, 0.12), (70, 45, 2, 0.1),
+                (40, 85, 3.5, 0.13), (80, 75, 2, 0.11), (55, 100, 2.5, 0.12),
+                (35, 65, 2, 0.1), (65, 90, 3, 0.14), (45, 40, 2, 0.09),
+                (75, 60, 2.5, 0.11), (25, 75, 2, 0.1), (60, 55, 3, 0.12),
+                (50, 30, 2, 0.08), (85, 50, 2.5, 0.1), (40, 110, 2, 0.11),
+            ]
+
+            for spot in spots {
+                let rect = CGRect(
+                    x: spot.x - spot.r,
+                    y: spot.y - spot.r,
+                    width: spot.r * 2,
+                    height: spot.r * 2
+                )
+                context.fill(
+                    Circle().path(in: rect),
+                    with: .color(Color.white.opacity(spot.opacity))
+                )
+            }
+        }
     }
 }
 
