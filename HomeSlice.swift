@@ -3202,9 +3202,8 @@ struct BusinessPizzaSlice: View {
             .scaleEffect(x: 1, y: -1) // Flip vertically
 
             // Green pepper "tie" OUTSIDE flipped ZStack for direct positioning
-            // Position below mouth (around y=95, toward pizza tip)
             GreenPepperTie()
-                .offset(x: 0, y: 45)
+                .offset(x: 0, y: 38)
         }
         .frame(width: 120, height: 140)
     }
@@ -3351,7 +3350,7 @@ struct BusinessKawaiiFace: View {
             SmilePath()
                 .stroke(Color(red: 0.4, green: 0.25, blue: 0.15), lineWidth: 2)
                 .frame(width: 15, height: 8)
-                .offset(y: 18)
+                .offset(y: 22)
         }
     }
 }
