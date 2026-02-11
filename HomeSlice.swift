@@ -3186,8 +3186,8 @@ struct BusinessPizzaSlice: View {
                             .clipShape(PizzaTriangle())
                     )
 
-                // Crust
-                CrustShape()
+                // Puffy Business Crust
+                BusinessCrustShape()
                     .fill(
                         LinearGradient(
                             colors: [
@@ -3199,9 +3199,12 @@ struct BusinessPizzaSlice: View {
                         )
                     )
 
+                // Highlight on top of bumps for 3D effect
+                BusinessCrustHighlight()
+
                 // Crust texture - toasted spots
                 CrustTexture()
-                    .clipShape(CrustShape())
+                    .clipShape(BusinessCrustShape())
 
                 // Pepperoni as cheeks (positioned BELOW the eyes)
                 // After flip: internal y=10 → frame Y≈60, y=5 → frame Y≈65
@@ -3475,7 +3478,30 @@ struct CrustShape: Shape {
         let leftX: CGFloat = 10
         let rightX: CGFloat = rect.width - 10
 
-        // Start at left side
+        path.move(to: CGPoint(x: leftX + 5, y: baseY))
+        path.addQuadCurve(
+            to: CGPoint(x: rightX - 5, y: baseY),
+            control: CGPoint(x: rect.midX, y: baseY + 10)
+        )
+        path.addQuadCurve(
+            to: CGPoint(x: leftX + 5, y: baseY),
+            control: CGPoint(x: rect.midX, y: bottomY + 5)
+        )
+        path.closeSubpath()
+
+        return path
+    }
+}
+
+// Business Pizza has puffy bumpy crust
+struct BusinessCrustShape: Shape {
+    func path(in rect: CGRect) -> Path {
+        var path = Path()
+        let baseY: CGFloat = rect.height - 25
+        let bottomY: CGFloat = rect.height - 5
+        let leftX: CGFloat = 10
+        let rightX: CGFloat = rect.width - 10
+
         path.move(to: CGPoint(x: leftX + 5, y: baseY))
 
         // Puffy bumpy top edge - multiple small bumps like risen dough
@@ -3486,7 +3512,6 @@ struct CrustShape: Shape {
             let startX = leftX + 5 + CGFloat(i) * bumpWidth
             let endX = startX + bumpWidth
             let midX = startX + bumpWidth / 2
-            // Vary bump heights slightly for organic look
             let bumpHeight: CGFloat = [8, 10, 9, 11, 8][i]
 
             path.addQuadCurve(
@@ -3503,6 +3528,38 @@ struct CrustShape: Shape {
         path.closeSubpath()
 
         return path
+    }
+}
+
+// Golden highlight on top of crust bumps for 3D effect
+struct BusinessCrustHighlight: View {
+    var body: some View {
+        Canvas { context, size in
+            let baseY: CGFloat = size.height - 25
+            let leftX: CGFloat = 10
+            let rightX: CGFloat = size.width - 10
+            let numBumps = 5
+            let bumpWidth = (rightX - leftX - 10) / CGFloat(numBumps)
+            let bumpHeights: [CGFloat] = [8, 10, 9, 11, 8]
+
+            // Draw highlight arc on top of each bump
+            for i in 0..<numBumps {
+                let startX = leftX + 5 + CGFloat(i) * bumpWidth
+                let midX = startX + bumpWidth / 2
+                let bumpTop = baseY + bumpHeights[i]
+
+                let highlightRect = CGRect(
+                    x: midX - 6,
+                    y: bumpTop - 2,
+                    width: 12,
+                    height: 4
+                )
+                context.fill(
+                    Ellipse().path(in: highlightRect),
+                    with: .color(Color.white.opacity(0.3))
+                )
+            }
+        }
     }
 }
 
