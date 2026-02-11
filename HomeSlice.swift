@@ -3199,10 +3199,10 @@ struct BusinessPizzaSlice: View {
                     .offset(x: 20, y: 5)
 
                 // Green pepper "tie" ON the pizza (counter-flip since parent is flipped)
-                // Higher internal y = lower on screen after flip
+                // NEGATIVE y = lower on screen after flip (toward pizza tip)
                 GreenPepperTie()
                     .scaleEffect(x: 1, y: -1)
-                    .offset(x: 0, y: 55)
+                    .offset(x: 0, y: -25)
             }
             .scaleEffect(x: 1, y: -1) // Flip vertically
         }
@@ -3347,12 +3347,11 @@ struct BusinessKawaiiFace: View {
             BusinessGlasses()
                 .offset(y: -5)
 
-            // Cute smile mouth - in front of everything
-            Circle()
-                .trim(from: 0.1, to: 0.4)
-                .stroke(Color.black, lineWidth: 3)
-                .frame(width: 24, height: 24)
-                .offset(y: 20)
+            // Subtle smile mouth (same style as original pizza)
+            SmilePath()
+                .stroke(Color(red: 0.4, green: 0.25, blue: 0.15), lineWidth: 2)
+                .frame(width: 15, height: 8)
+                .offset(y: 18)
         }
     }
 }
