@@ -2414,6 +2414,15 @@ struct ResponseBubble: View {
                 }
             }
 
+            // Style links with pepperoni red
+            let pepperoniRed = Color(red: 0.8, green: 0.2, blue: 0.15)
+            for (link, range) in result.runs[\.link] {
+                if link != nil {
+                    result[range].foregroundColor = pepperoniRed
+                    result[range].underlineStyle = .single
+                }
+            }
+
             return result
         } catch {
             var plain = AttributedString(text)
