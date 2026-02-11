@@ -3189,13 +3189,14 @@ struct BusinessPizzaSlice: View {
                     )
 
                 // Pepperoni as cheeks (positioned for flipped view)
+                // After flip: frame_Y = 70 + (70 - internal_Y), so y: -15 → frame Y ≈ 85 (face level)
                 Pepperoni()
-                    .scaleEffect(0.7)
-                    .offset(x: -25, y: 70)
+                    .scaleEffect(0.75)
+                    .offset(x: -30, y: -15)
 
                 Pepperoni()
-                    .scaleEffect(0.7)
-                    .offset(x: 25, y: 70)
+                    .scaleEffect(0.75)
+                    .offset(x: 30, y: -15)
             }
             .scaleEffect(x: 1, y: -1) // Flip vertically
 
