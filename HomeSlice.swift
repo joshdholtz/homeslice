@@ -3303,15 +3303,23 @@ struct BusinessShirtCollar: View {
                 // Left collar point
                 CollarPoint()
                     .fill(Color.white)
-                    .frame(width: 12, height: 10)
-                    .shadow(color: .black.opacity(0.2), radius: 0.5, x: -0.5, y: 0.5)
+                    .overlay(
+                        CollarPoint()
+                            .stroke(Color.black.opacity(0.15), lineWidth: 0.5)
+                    )
+                    .frame(width: 14, height: 12)
+                    .shadow(color: .black.opacity(0.3), radius: 1, x: -1, y: 1)
                     .scaleEffect(x: -1, y: 1)
 
                 // Right collar point
                 CollarPoint()
                     .fill(Color.white)
-                    .frame(width: 12, height: 10)
-                    .shadow(color: .black.opacity(0.2), radius: 0.5, x: 0.5, y: 0.5)
+                    .overlay(
+                        CollarPoint()
+                            .stroke(Color.black.opacity(0.15), lineWidth: 0.5)
+                    )
+                    .frame(width: 14, height: 12)
+                    .shadow(color: .black.opacity(0.3), radius: 1, x: 1, y: 1)
             }
         }
     }
