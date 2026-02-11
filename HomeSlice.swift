@@ -3219,6 +3219,10 @@ struct BusinessPizzaSlice: View {
             }
             .scaleEffect(x: 1, y: -1) // Flip vertically
 
+            // Business shirt collar (behind tie)
+            BusinessShirtCollar()
+                .offset(x: 0, y: 28)
+
             // Green pepper "tie" OUTSIDE flipped ZStack for direct positioning
             GreenPepperTie()
                 .offset(x: 0, y: 32)
@@ -3280,6 +3284,34 @@ struct CrustTexture: View {
                     with: .color(toastColor.opacity(spot.opacity))
                 )
             }
+        }
+    }
+}
+
+struct BusinessShirtCollar: View {
+    var body: some View {
+        ZStack {
+            // Left collar point - white triangle angled outward
+            Path { path in
+                path.move(to: CGPoint(x: 0, y: 0))
+                path.addLine(to: CGPoint(x: -14, y: 12))
+                path.addLine(to: CGPoint(x: -2, y: 14))
+                path.closeSubpath()
+            }
+            .fill(Color.white)
+            .shadow(color: .black.opacity(0.15), radius: 1, x: 0, y: 1)
+            .offset(x: -4, y: 0)
+
+            // Right collar point - white triangle angled outward
+            Path { path in
+                path.move(to: CGPoint(x: 0, y: 0))
+                path.addLine(to: CGPoint(x: 14, y: 12))
+                path.addLine(to: CGPoint(x: 2, y: 14))
+                path.closeSubpath()
+            }
+            .fill(Color.white)
+            .shadow(color: .black.opacity(0.15), radius: 1, x: 0, y: 1)
+            .offset(x: 4, y: 0)
         }
     }
 }
