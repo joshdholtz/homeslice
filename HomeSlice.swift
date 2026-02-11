@@ -2388,9 +2388,32 @@ struct ResponseBubble: View {
 
     private func parseMarkdown(_ text: String) -> AttributedString {
         do {
-            var result = try AttributedString(markdown: text, options: .init(interpretedSyntax: .inlineOnlyPreservingWhitespace))
-            // Set base color without overriding markdown link colors
-            result.foregroundColor = .black
+            var result = try AttributedString(
+                markdown: text,
+                options: .init(interpretedSyntax: .inlineOnlyPreservingWhitespace)
+            )
+
+            // Manually convert presentation intents to font attributes
+            // SwiftUI doesn't always do this automatically when other attributes are set
+            for (intent, range) in result.runs[\.inlinePresentationIntent] {
+                result[range].foregroundColor = .black
+
+                guard let intent = intent else { continue }
+
+                if intent.contains(.stronglyEmphasized) && intent.contains(.emphasized) {
+                    result[range].font = .system(size: 14, weight: .bold).italic()
+                } else if intent.contains(.stronglyEmphasized) {
+                    result[range].font = .system(size: 14, weight: .bold)
+                } else if intent.contains(.emphasized) {
+                    result[range].font = .system(size: 14).italic()
+                } else if intent.contains(.code) {
+                    result[range].font = .system(size: 13, design: .monospaced)
+                    result[range].backgroundColor = Color.gray.opacity(0.15)
+                } else if intent.contains(.strikethrough) {
+                    result[range].strikethroughStyle = .single
+                }
+            }
+
             return result
         } catch {
             var plain = AttributedString(text)
@@ -2406,13 +2429,11 @@ struct ResponseBubble: View {
                 // Scrollable message content with markdown
                 ScrollView {
                     Text(parseMarkdown(message))
-                        .font(.system(size: 14))
-                        .foregroundColor(.primary)
-                        .multilineTextAlignment(.leading)
                         .textSelection(.enabled)
+                        .multilineTextAlignment(.leading)
                         .fixedSize(horizontal: false, vertical: true)
                         .frame(maxWidth: .infinity, alignment: .leading)
-                        .padding(.trailing, 4)  // Space for scrollbar
+                        .padding(.trailing, 4)
                 }
                 .frame(maxHeight: 160)
 
