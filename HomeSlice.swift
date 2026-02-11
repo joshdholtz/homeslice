@@ -1920,7 +1920,7 @@ struct KawaiiPizzaView: View {
                         BusinessPizzaSlice()
                             .scaleEffect(breatheScale)
                         BusinessKawaiiFace(isBlinking: isBlinking, mood: pizzaState.mood)
-                            .offset(y: 15)
+                            .offset(y: -25)
                             .scaleEffect(breatheScale)
                     case .cat:
                         KawaiiCat(isBlinking: isBlinking, mood: pizzaState.mood)
@@ -3188,21 +3188,22 @@ struct BusinessPizzaSlice: View {
                         )
                     )
 
-                // Pepperoni as cheeks (positioned for flipped view)
-                // After flip: frame_Y = 70 + (70 - internal_Y), so y: -15 → frame Y ≈ 85 (face level)
+                // Pepperoni as cheeks (positioned BELOW the eyes)
+                // After flip: frame_Y = 70 - internal_Y, so y: 0 → frame Y = 70
                 Pepperoni()
                     .scaleEffect(0.75)
-                    .offset(x: -30, y: -15)
+                    .offset(x: -28, y: 0)
 
                 Pepperoni()
                     .scaleEffect(0.75)
-                    .offset(x: 30, y: -15)
+                    .offset(x: 28, y: 0)
             }
             .scaleEffect(x: 1, y: -1) // Flip vertically
 
-            // Tie hangs from the point (now at bottom), centered
+            // Tie hangs from the point (now at bottom), centered and bigger
             BusinessTie()
-                .offset(x: 0, y: 80)
+                .scaleEffect(1.8)
+                .offset(x: 0, y: 55)
         }
         .frame(width: 120, height: 140)
     }
