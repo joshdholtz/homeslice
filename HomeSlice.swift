@@ -2386,16 +2386,34 @@ struct ResponseBubble: View {
     var onLeft: Bool = false
 
 
+    private func parseMarkdown(_ text: String) -> AttributedString {
+        // Test: "**bold** and *italic*" should render styled
+        print("[MD] Parsing: \(text.prefix(100))...")
+        do {
+            var result = try AttributedString(markdown: text, options: .init(interpretedSyntax: .inlineOnlyPreservingWhitespace))
+            // Debug: check if any styling exists
+            for run in result.runs {
+                if run.inlinePresentationIntent != nil {
+                    print("[MD] Found styled run: \(run.inlinePresentationIntent!)")
+                }
+            }
+            return result
+        } catch {
+            print("[MD] Parse error: \(error)")
+            return AttributedString(text)
+        }
+    }
+
     var body: some View {
         HStack(alignment: .top, spacing: 0) {
             // Main content area
             VStack(alignment: .leading, spacing: 8) {
                 // Scrollable message content with markdown
                 ScrollView {
-                    Text(.init(message))  // LocalizedStringKey parses markdown automatically
+                    Text(parseMarkdown(message))
                         .font(.system(size: 14))
-                        .foregroundColor(.black)
                         .multilineTextAlignment(.leading)
+                        .textSelection(.enabled)
                         .fixedSize(horizontal: false, vertical: true)
                         .frame(maxWidth: .infinity, alignment: .leading)
                         .padding(.trailing, 4)  // Space for scrollbar
