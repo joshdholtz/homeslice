@@ -3203,7 +3203,7 @@ struct BusinessPizzaSlice: View {
 
             // Green pepper "tie" OUTSIDE flipped ZStack for direct positioning
             GreenPepperTie()
-                .offset(x: 0, y: 38)
+                .offset(x: 0, y: 32)
         }
         .frame(width: 120, height: 140)
     }
@@ -3346,11 +3346,9 @@ struct BusinessKawaiiFace: View {
             BusinessGlasses()
                 .offset(y: -5)
 
-            // Subtle smile mouth (same style as original pizza)
-            SmilePath()
-                .stroke(Color(red: 0.4, green: 0.25, blue: 0.15), lineWidth: 2)
-                .frame(width: 15, height: 8)
-                .offset(y: 22)
+            // Mouth based on mood (same as original pizza)
+            MouthView(mood: mood)
+                .offset(y: 20)
         }
     }
 }
