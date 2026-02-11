@@ -3291,27 +3291,27 @@ struct CrustTexture: View {
 struct BusinessShirtCollar: View {
     var body: some View {
         ZStack {
-            // Shirt body - visible on sides of tie
+            // Shirt body - small peek on sides of tie
             ShirtBody()
                 .fill(Color.white)
-                .frame(width: 50, height: 45)
-                .shadow(color: .black.opacity(0.1), radius: 1, x: 0, y: 1)
-                .offset(y: 8)
+                .frame(width: 32, height: 28)
+                .shadow(color: .black.opacity(0.1), radius: 0.5, x: 0, y: 0.5)
+                .offset(y: 6)
 
-            // Collar points on top
-            HStack(spacing: 10) {
+            // Collar points folding down over shirt
+            HStack(spacing: 8) {
                 // Left collar point
                 CollarPoint()
                     .fill(Color.white)
-                    .frame(width: 18, height: 18)
-                    .shadow(color: .black.opacity(0.25), radius: 1, x: -1, y: 1)
+                    .frame(width: 12, height: 10)
+                    .shadow(color: .black.opacity(0.2), radius: 0.5, x: -0.5, y: 0.5)
                     .scaleEffect(x: -1, y: 1)
 
                 // Right collar point
                 CollarPoint()
                     .fill(Color.white)
-                    .frame(width: 18, height: 18)
-                    .shadow(color: .black.opacity(0.25), radius: 1, x: 1, y: 1)
+                    .frame(width: 12, height: 10)
+                    .shadow(color: .black.opacity(0.2), radius: 0.5, x: 0.5, y: 0.5)
             }
         }
     }
@@ -3320,14 +3320,14 @@ struct BusinessShirtCollar: View {
 struct ShirtBody: Shape {
     func path(in rect: CGRect) -> Path {
         var path = Path()
-        // V-neck shirt shape that shows on sides of tie
+        // Shirt with V opening for tie - narrower opening
         let midX = rect.midX
-        path.move(to: CGPoint(x: midX - 8, y: 0))
-        path.addLine(to: CGPoint(x: rect.minX, y: rect.maxY * 0.3))
+        path.move(to: CGPoint(x: midX - 5, y: 0))
+        path.addLine(to: CGPoint(x: rect.minX + 2, y: rect.maxY * 0.4))
         path.addLine(to: CGPoint(x: rect.minX, y: rect.maxY))
         path.addLine(to: CGPoint(x: rect.maxX, y: rect.maxY))
-        path.addLine(to: CGPoint(x: rect.maxX, y: rect.maxY * 0.3))
-        path.addLine(to: CGPoint(x: midX + 8, y: 0))
+        path.addLine(to: CGPoint(x: rect.maxX - 2, y: rect.maxY * 0.4))
+        path.addLine(to: CGPoint(x: midX + 5, y: 0))
         path.closeSubpath()
         return path
     }
@@ -3336,10 +3336,10 @@ struct ShirtBody: Shape {
 struct CollarPoint: Shape {
     func path(in rect: CGRect) -> Path {
         var path = Path()
-        // Triangle pointing down and outward
-        path.move(to: CGPoint(x: rect.minX, y: rect.minY))
+        // Triangular collar point
+        path.move(to: CGPoint(x: rect.midX, y: rect.minY))
         path.addLine(to: CGPoint(x: rect.maxX, y: rect.maxY))
-        path.addLine(to: CGPoint(x: rect.minX + 4, y: rect.maxY))
+        path.addLine(to: CGPoint(x: rect.minX, y: rect.maxY * 0.7))
         path.closeSubpath()
         return path
     }
